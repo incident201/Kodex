@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Kodex
+GenericName=Codex client
+GenericName[ru]=Клиент Codex
+Comment=Work with Codex on your KDE desktop
+Comment[ru]=Работайте с Codex в KDE
+Exec=kodex
+Icon=org.kde.kodex
+Terminal=false
+Categories=Development;Qt;KDE;
+StartupNotify=true

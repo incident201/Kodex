@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #pragma once
 #include "settings.h"
 #include <QJsonObject>
@@ -28,7 +34,7 @@ class RpcClient : public QObject {
     void respond(const QJsonValue &id, const QJsonObject &result);
     void reject(const QJsonValue &id, const QString &reason);
     void ingest(const QJsonObject &message);
-  signals:
+  Q_SIGNALS:
     void stateChanged();
     void connected();
     void disconnected();

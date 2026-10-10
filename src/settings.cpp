@@ -1,32 +1,71 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "settings.h"
 #include <KConfigGroup>
 #include <KLocalizedString>
 #include <KWallet>
+#include <QDir>
+#include <QFileInfo>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <QUrl>
 #include <memory>
+namespace {
+// Codex installs itself into ~/.local/bin, which a desktop session often leaves out of PATH.
+QString findProgram(const QString &name) {
+    const auto found = QStandardPaths::findExecutable(name);
+    return found.isEmpty() ? QStandardPaths::findExecutable(name, {QDir::homePath() + "/.local/bin"}) : found;
+}
+// The standard install is what the CLI uses, so Kodex shares its profile and sessions by default.
+QString defaultExecutable() {
+    const auto standard = QDir::homePath() + "/.local/bin/codex";
+    return Settings::resolveProgram(standard).isEmpty() ? "codex" : standard;
+}
+} // namespace
 Settings::Settings(QObject *p, const QString &configFile)
     : QObject(p), m_config(KSharedConfig::openConfig(configFile)) {
-    m_values = {
-        {"executable", "codex"},
-        {"arguments", ""},
-        {"proxyMode", "inherit"},
-        {"proxyUrl", ""},
-        {"noProxy", "localhost,127.0.0.1,::1"},
-        {"fallbackProxy", ""},
-        {"language", ""},
-        {"updateMode", QStandardPaths::findExecutable("codex-update").isEmpty() ? "builtin" : "external"},
-        {"updater", QStandardPaths::findExecutable("codex-update")},
-        {"updaterArguments", ""}};
+    m_values = {{"executable", defaultExecutable()},
+                {"arguments", ""},
+                {"proxyMode", "inherit"},
+                {"proxyUrl", ""},
+                {"noProxy", "localhost,127.0.0.1,::1"},
+                {"fallbackProxy", ""},
+                {"language", ""},
+                {"updateMode", findProgram("codex-update").isEmpty() ? "builtin" : "external"},
+                {"updater", findProgram("codex-update")},
+                {"updaterArguments", ""}};
     KConfigGroup g(m_config, "Runtime");
     for (auto it = m_values.begin(); it != m_values.end(); ++it)
         it.value() = g.readEntry(it.key(), it.value().toString());
 }
 QString Settings::executable() const {
     auto e = value("executable");
-    return e.contains('/') ? e : QStandardPaths::findExecutable(e);
+    return e.contains('/') ? e : findProgram(e);
+}
+QString Settings::resolveProgram(const QString &program) {
+    const auto name = program.trimmed();
+    if (name.isEmpty())
+        return {};
+    if (!name.contains('/'))
+        return findProgram(name);
+    const QFileInfo file(name);
+    return file.isFile() && file.isExecutable() ? file.absoluteFilePath() : QString();
+}
+QString Settings::localPath(const QUrl &file) {
+    return file.toLocalFile();
+}
+QUrl Settings::dialogFolder(const QString &program) {
+    const auto resolved = resolveProgram(program);
+    return QUrl::fromLocalFile(resolved.isEmpty() ? QDir::homePath() : QFileInfo(resolved).absolutePath());
+}
+QString Settings::shortPath(const QString &path) {
+    const auto home = QDir::homePath();
+    return path == home || path.startsWith(home + '/') ? "~" + path.mid(home.size()) : path;
 }
 QStringList Settings::arguments() const {
     return QProcess::splitCommand(value("arguments"));
@@ -40,19 +79,19 @@ bool Settings::save(const QVariantMap &v, const QString &password) {
         QUrl u(merged[key].toString());
         if (!u.isEmpty() && (!QStringList{"http", "https", "socks5", "socks5h"}.contains(u.scheme()) ||
                              u.host().isEmpty() || !u.password().isEmpty())) {
-            emit error(i18n("Enter a valid proxy URL without a password; use the password field."));
+            Q_EMIT error(i18n("Enter a valid proxy URL without a password; use the password field."));
             return false;
         }
     }
     if (merged["proxyMode"] == "custom" && merged["proxyUrl"].toString().isEmpty()) {
-        emit error(i18n("A proxy URL is required."));
+        Q_EMIT error(i18n("A proxy URL is required."));
         return false;
     }
     if (!password.isEmpty()) {
         std::unique_ptr<KWallet::Wallet> w(KWallet::Wallet::openWallet(KWallet::Wallet::NetworkWallet(), 0));
         if (!w || (!w->hasFolder("Kodex") && !w->createFolder("Kodex")) || !w->setFolder("Kodex") ||
             w->writePassword(merged["proxyUrl"].toString(), password) != 0) {
-            emit error(i18n("Could not save the proxy password in KWallet."));
+            Q_EMIT error(i18n("Could not save the proxy password in KWallet."));
             return false;
         }
         m_password = password;
@@ -63,7 +102,7 @@ bool Settings::save(const QVariantMap &v, const QString &password) {
     for (auto it = m_values.begin(); it != m_values.end(); ++it)
         g.writeEntry(it.key(), it.value());
     g.sync();
-    emit changed();
+    Q_EMIT changed();
     return true;
 }
 QProcessEnvironment Settings::proxyEnvironment(QProcessEnvironment env, const QString &mode,

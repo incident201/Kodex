@@ -1,4 +1,9 @@
 #!/bin/sh
+
+# SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Real, opt-in Codex turns in isolated projects, using independent KDE palettes.
 set -eu
 kodex_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)

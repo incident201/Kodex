@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
@@ -25,32 +31,35 @@ ColumnLayout {
         Controls.TabButton { text: i18n("Working tree") }
         Controls.TabButton { text: i18n("Codex diff") }
     }
-    ListView {
-        visible: tabs.currentIndex === 0; Layout.fillWidth: true; Layout.preferredHeight: Math.min(contentHeight + 5, 210); clip: true
-        model: Repository.files
-        delegate: Controls.ItemDelegate {
-            required property var record
-            objectName: "file-" + record.path
-            width: ListView.view.width
-            highlighted: panel.selectedPath === record.path
-            contentItem: RowLayout {
-                Controls.CheckBox { checked: record.staged; enabled: !Repository.state.busy; onClicked: Repository.stage(record.path, record.staged); Controls.ToolTip.text: checked ? i18n("Unstage file") : i18n("Stage file"); Controls.ToolTip.visible: hovered }
-                // Porcelain XY codes are cryptic; show one colored letter with a description.
-                Controls.Label {
-                    readonly property string code: record.untracked ? "?" : (["DD", "AU", "UD", "UA", "DU", "AA", "UU"].includes(record.status) ? "U" : record.status.trim()[0])
-                    text: code === "?" ? "N" : code === "U" ? "!" : code
-                    font.family: "monospace"; font.bold: true
-                    horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: Kirigami.Units.gridUnit
-                    color: code === "?" || code === "A" ? Kirigami.Theme.positiveTextColor : code === "D" || code === "U" ? Kirigami.Theme.negativeTextColor : code === "M" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
-                    HoverHandler { id: statusHover }
-                    Controls.ToolTip.visible: statusHover.hovered
-                    Controls.ToolTip.text: ({"?": i18n("Untracked"), A: i18n("Added"), D: i18n("Deleted"), M: i18n("Modified"), R: i18n("Renamed"), C: i18n("Copied"), U: i18n("Conflict")})[code] || record.status
+    SlimScrollView {
+        visible: tabs.currentIndex === 0; Layout.fillWidth: true; Layout.preferredHeight: Math.min(fileList.contentHeight + 5, 210)
+        Controls.ScrollBar.horizontal.policy: Controls.ScrollBar.AlwaysOff
+        ListView {
+            id: fileList; clip: true
+            model: Repository.files
+            delegate: Controls.ItemDelegate {
+                required property var record
+                objectName: "file-" + record.path
+                width: ListView.view.width
+                highlighted: panel.selectedPath === record.path
+                contentItem: RowLayout {
+                    Controls.CheckBox { checked: record.staged; enabled: !Repository.state.busy; onClicked: Repository.stage(record.path, record.staged); Controls.ToolTip.text: checked ? i18n("Unstage file") : i18n("Stage file"); Controls.ToolTip.visible: hovered }
+                    // Porcelain XY codes are cryptic; show one colored letter with a description.
+                    Controls.Label {
+                        readonly property string code: record.untracked ? "?" : (["DD", "AU", "UD", "UA", "DU", "AA", "UU"].includes(record.status) ? "U" : record.status.trim()[0])
+                        text: code === "?" ? "N" : code === "U" ? "!" : code
+                        font.family: "monospace"; font.bold: true
+                        horizontalAlignment: Text.AlignHCenter; Layout.preferredWidth: Kirigami.Units.gridUnit
+                        color: code === "?" || code === "A" ? Kirigami.Theme.positiveTextColor : code === "D" || code === "U" ? Kirigami.Theme.negativeTextColor : code === "M" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
+                        HoverHandler { id: statusHover }
+                        Controls.ToolTip.visible: statusHover.hovered
+                        Controls.ToolTip.text: ({"?": i18n("Untracked"), A: i18n("Added"), D: i18n("Deleted"), M: i18n("Modified"), R: i18n("Renamed"), C: i18n("Copied"), U: i18n("Conflict")})[code] || record.status
+                    }
+                    Controls.Label { text: record.path; Layout.fillWidth: true; elide: Text.ElideMiddle }
                 }
-                Controls.Label { text: record.path; Layout.fillWidth: true; elide: Text.ElideMiddle }
+                onClicked: { panel.selectedPath = record.path; Repository.diff(record.path, panel.stagedDiff) }
             }
-            onClicked: { panel.selectedPath = record.path; Repository.diff(record.path, panel.stagedDiff) }
         }
-        Controls.ScrollBar.vertical: Controls.ScrollBar {}
     }
     Controls.CheckBox { Layout.leftMargin: Kirigami.Units.largeSpacing; visible: tabs.currentIndex === 0 && Repository.state.repository; text: i18n("Show staged diff"); checked: panel.stagedDiff; onToggled: { panel.stagedDiff = checked; if (panel.selectedPath) Repository.diff(panel.selectedPath, checked) } }
     Controls.Label {
@@ -58,7 +67,7 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.margins: Kirigami.Units.largeSpacing; wrapMode: Text.Wrap; opacity: 0.65
         text: tabs.currentIndex === 1 ? i18n("Codex has not provided a separate diff. File changes are available in Working tree.") : Repository.state.repository ? i18n("Select a file to view its diff.") : i18n("This folder is not a Git repository. Codex patches appear in the Codex diff tab.")
     }
-    Controls.ScrollView {
+    SlimScrollView {
         Layout.fillWidth: true; Layout.fillHeight: true; clip: true
         Controls.ScrollBar.horizontal.policy: panel.diffText.length > 0 ? Controls.ScrollBar.AsNeeded : Controls.ScrollBar.AlwaysOff
         Controls.TextArea {

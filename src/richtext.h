@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #pragma once
 #include <KSyntaxHighlighting/Repository>
 #include <QObject>

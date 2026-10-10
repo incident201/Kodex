@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "appcontroller.h"
 #include "maintenance.h"
 #include <KLocalizedString>
@@ -8,7 +14,7 @@
 // It owns only its temporary project/thread/repository; the shared daemon stays running.
 class LiveTests : public QObject {
     Q_OBJECT
-  private slots:
+  private Q_SLOTS:
     void applicationWorkflow() {
         if (!qEnvironmentVariableIsSet("KODEX_LIVE_WORKFLOW"))
             QSKIP("Set KODEX_LIVE_WORKFLOW=1 to exercise the application with real Codex");

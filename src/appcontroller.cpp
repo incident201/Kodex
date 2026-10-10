@@ -1,12 +1,27 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "appcontroller.h"
 #include <KLocalizedString>
 #include <QClipboard>
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFileInfo>
 #include <QGuiApplication>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QLocale>
+#include <QMimeDatabase>
+#include <QMimeType>
+#include <QRegularExpression>
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <QUuid>
 AppController::AppController(RpcClient *r, Settings *s, GitService *g, QObject *p)
     : QObject(p), m_rpc(r), m_settings(s), m_git(g) {
@@ -25,7 +40,7 @@ AppController::AppController(RpcClient *r, Settings *s, GitService *g, QObject *
         m_sending = false;
         m_historyLoading = false;
         m_state["loading"] = false;
-        emit changed();
+        Q_EMIT changed();
     });
     connect(r, &RpcClient::notification, this, &AppController::notify);
     connect(r, &RpcClient::serverRequest, this, &AppController::receiveRequest);
@@ -33,7 +48,7 @@ AppController::AppController(RpcClient *r, Settings *s, GitService *g, QObject *
 void AppController::call(const QString &m, const QJsonObject &p, RpcClient::Callback cb) {
     m_rpc->request(m, p, [this, m, cb](auto r, auto e) {
         if (!e.isEmpty())
-            emit error(m + ": " + Settings::redact(e["message"].toString()));
+            Q_EMIT error(m + ": " + Settings::redact(e["message"].toString()));
         if (cb)
             cb(r, e);
     });
@@ -46,7 +61,7 @@ void AppController::refresh() {
         auto a = r["account"].toObject();
         m_state["account"] = a["email"].toString(a["type"].toString());
         m_state["signedIn"] = !a.isEmpty();
-        emit changed();
+        Q_EMIT changed();
     });
     loadModels();
     m_rpc->request("account/rateLimits/read", {}, [this](auto r, auto e) {
@@ -56,7 +71,7 @@ void AppController::refresh() {
     call("configRequirements/read", {}, [this](auto r, auto e) {
         if (e.isEmpty()) {
             m_state["requirements"] = r.toVariantMap();
-            emit changed();
+            Q_EMIT changed();
         }
     });
     refreshMcp();
@@ -106,21 +121,24 @@ void AppController::loadProjects(const QString &cursor) {
         auto next = r["nextCursor"].toString();
         if (!next.isEmpty())
             loadProjects(next);
-        else if (m_state["projectId"].toString().isEmpty() && m_projects.count()) {
+        else if (m_state["projectId"].toString().isEmpty() && !m_state["unassigned"].toBool()) {
             const auto saved = m_settings->draft("last-project");
             for (auto project : m_projects.json())
                 if (project.toObject()["id"].toString() == saved) {
                     selectProject(saved);
                     return;
                 }
-            selectProject(m_projects.get(0)["id"].toString());
+            if (m_projects.count() && saved != "unassigned")
+                selectProject(m_projects.get(0)["id"].toString());
+            else
+                showUnassigned();
         }
     });
 }
 void AppController::addProject(const QUrl &folder) {
     auto path = QDir(folder.toLocalFile()).canonicalPath();
     if (path.isEmpty()) {
-        emit error(i18n("Choose an existing local directory."));
+        Q_EMIT error(i18n("Choose an existing local directory."));
         return;
     }
     for (auto v : m_projects.json())
@@ -144,26 +162,47 @@ void AppController::addProject(const QUrl &folder) {
 }
 void AppController::selectProject(const QString &id) {
     if (m_git->state()["busy"].toBool()) {
-        emit error(i18n("Wait for the Git operation to finish."));
+        Q_EMIT error(i18n("Wait for the Git operation to finish."));
         return;
     }
     for (auto v : m_projects.json()) {
         auto o = v.toObject();
         if (o["id"].toString() != id)
             continue;
+        m_state["unassigned"] = false;
         m_state["projectId"] = id;
         m_settings->saveDraft("last-project", id);
         m_state["cwd"] = o["path"].toString();
         m_state["projectName"] = o["name"].toString();
         clearThread();
         m_git->setDirectory(o["path"].toString());
-        emit changed();
+        Q_EMIT changed();
         loadThreads();
         break;
     }
 }
+void AppController::showUnassigned() {
+    if (m_git->state()["busy"].toBool()) {
+        Q_EMIT error(i18n("Wait for the Git operation to finish."));
+        return;
+    }
+    // Sessions that belong to no project, from any folder: the equivalent of `codex resume --all`.
+    m_state["unassigned"] = true;
+    m_state["projectId"] = "";
+    m_state["projectName"] = "";
+    m_state["cwd"] = "";
+    m_settings->saveDraft("last-project", "unassigned");
+    clearThread();
+    m_git->setDirectory({});
+    Q_EMIT changed();
+    loadThreads();
+}
+QString AppController::scope() const {
+    return m_state["unassigned"].toBool() ? "unassigned" : m_state["projectId"].toString();
+}
 void AppController::clearThread() {
     // Responses for the previous thread are ignored, so reset everything they would have reset.
+    swapAttachments({});
     m_state["threadId"] = "";
     m_state["title"] = "";
     m_state["busy"] = false;
@@ -187,15 +226,23 @@ void AppController::renameProject(const QString &name) {
          });
 }
 void AppController::loadThreads(bool archived, const QString &cursor) {
+    const bool unassigned = m_state["unassigned"].toBool();
     auto cwd = m_state["cwd"].toString();
-    if (cwd.isEmpty())
+    if (cwd.isEmpty() && !unassigned)
         return;
     m_state["archived"] = archived;
-    QJsonObject p{{"cwd", cwd}, {"archived", archived}, {"limit", 50}};
+    QJsonObject p{{"archived", archived}, {"limit", 50}};
+    if (unassigned) {
+        p["projectId"] = QJsonValue::Null;
+        p["sortKey"] = "updated_at";
+    } else
+        p["cwd"] = cwd;
     if (!cursor.isEmpty())
         p["cursor"] = cursor;
-    call("thread/list", p, [this, cwd, cursor](auto r, auto e) {
-        if (!e.isEmpty() || cwd != m_state["cwd"].toString())
+    call("thread/list", p, [this, cwd, unassigned, cursor](auto r, auto e) {
+        // The selected folder changes while browsing unassigned sessions, so only the view matters there.
+        if (!e.isEmpty() || unassigned != m_state["unassigned"].toBool() ||
+            (!unassigned && cwd != m_state["cwd"].toString()))
             return;
         if (cursor.isEmpty())
             m_threads.reset();
@@ -212,12 +259,13 @@ void AppController::loadThreads(bool archived, const QString &cursor) {
         if (!m_state["archived"].toBool()) {
             for (auto it = m_newThreads.begin(); it != m_newThreads.end(); ++it) {
                 auto session = it.value();
-                if (session["cwd"].toString() == cwd)
-                    m_threads.upsert(session["thread"].toObject(), true);
+                const auto thread = session["thread"].toObject();
+                if (unassigned ? thread["projectId"].toString().isEmpty() : session["cwd"].toString() == cwd)
+                    m_threads.upsert(thread, true);
             }
         }
         if (m_state["threadId"].toString().isEmpty() && !m_state["archived"].toBool()) {
-            const auto saved = m_settings->draft("last-thread-" + m_state["projectId"].toString());
+            const auto saved = m_settings->draft("last-thread-" + scope());
             for (auto v : r["data"].toArray())
                 if (v.toObject()["id"].toString() == saved) {
                     selectThread(saved);
@@ -225,7 +273,7 @@ void AppController::loadThreads(bool archived, const QString &cursor) {
                 }
         }
         m_state["threadsCursor"] = r["nextCursor"].toString();
-        emit changed();
+        Q_EMIT changed();
     });
 }
 void AppController::newThread() {
@@ -233,10 +281,10 @@ void AppController::newThread() {
         return;
     m_state["loading"] = true;
     m_state["archived"] = false;
-    emit changed();
-    QJsonObject p{{"cwd", m_state["cwd"].toString()},
-                  {"projectId", m_state["projectId"].toString()},
-                  {"experimentalRawEvents", false}};
+    Q_EMIT changed();
+    QJsonObject p{{"cwd", m_state["cwd"].toString()}, {"experimentalRawEvents", false}};
+    if (!m_state["projectId"].toString().isEmpty())
+        p["projectId"] = m_state["projectId"].toString();
     if (!m_state["model"].toString().isEmpty())
         p["model"] = m_state["model"].toString();
     const auto project = m_state["projectId"].toString();
@@ -250,14 +298,15 @@ void AppController::newThread() {
             m_newThreads.insert(t["id"].toString(), r);
             selectThread(t["id"].toString());
         }
-        emit changed();
+        Q_EMIT changed();
     });
 }
 void AppController::selectThread(const QString &id) {
     if (m_git->state()["busy"].toBool()) {
-        emit error(i18n("Wait for the Git operation to finish."));
+        Q_EMIT error(i18n("Wait for the Git operation to finish."));
         return;
     }
+    swapAttachments(id);
     m_state["threadId"] = id;
     m_state["loading"] = true;
     m_state["contextPercent"] = -1;
@@ -265,11 +314,11 @@ void AppController::selectThread(const QString &id) {
     m_state["historyCursor"] = "";
     m_state["planReady"] = false;
     m_state["proposedPlan"] = "";
-    m_settings->saveDraft("last-thread-" + m_state["projectId"].toString(), id);
+    m_settings->saveDraft("last-thread-" + scope(), id);
     m_messages.reset();
     m_turn.clear();
     m_historyLoading = false;
-    emit changed();
+    Q_EMIT changed();
     // A new thread has no persisted rollout until its first turn. Keep using the
     // session returned by thread/start; thread/resume requires persisted history.
     if (m_newThreads.contains(id)) {
@@ -288,7 +337,7 @@ void AppController::selectThread(const QString &id) {
                 m_state["title"] = t["name"].toString(t["preview"].toString());
                 loadHistory(false);
             }
-            emit changed();
+            Q_EMIT changed();
         });
         return;
     }
@@ -297,7 +346,7 @@ void AppController::selectThread(const QString &id) {
             return;
         m_state["loading"] = false;
         if (!e.isEmpty()) {
-            emit changed();
+            Q_EMIT changed();
             return;
         }
         applySessionResponse(r);
@@ -310,13 +359,16 @@ void AppController::applySessionResponse(const QJsonObject &r) {
     if (!cwd.isEmpty() && cwd != m_state["cwd"].toString()) {
         m_state["cwd"] = cwd;
         m_git->setDirectory(cwd);
-        for (auto v : m_projects.json())
-            if (v.toObject()["path"].toString() == cwd) {
-                m_state["projectId"] = v.toObject()["id"].toString();
-                m_state["projectName"] = v.toObject()["name"].toString();
-                break;
-            }
-        loadThreads();
+        // Unassigned sessions keep their list; the folder only drives the Git panel.
+        if (!m_state["unassigned"].toBool()) {
+            for (auto v : m_projects.json())
+                if (v.toObject()["path"].toString() == cwd) {
+                    m_state["projectId"] = v.toObject()["id"].toString();
+                    m_state["projectName"] = v.toObject()["name"].toString();
+                    break;
+                }
+            loadThreads();
+        }
     }
     m_state["title"] = t["name"].toString(t["preview"].toString());
     m_state["busy"] = t["status"].toObject()["type"].toString() == "active";
@@ -334,7 +386,7 @@ void AppController::applySessionResponse(const QJsonObject &r) {
         m_inheritedPermissions["approvalPolicy"] = r["approvalPolicy"];
     if (r.contains("approvalsReviewer"))
         m_inheritedPermissions["approvalsReviewer"] = r["approvalsReviewer"];
-    emit changed();
+    Q_EMIT changed();
 }
 void AppController::loadHistory(bool older) {
     auto id = m_state["threadId"].toString(), cursor = m_state["historyCursor"].toString();
@@ -374,7 +426,7 @@ void AppController::loadHistory(bool older) {
             }
         }
         m_state["historyCursor"] = r["nextCursor"].toString();
-        emit changed();
+        Q_EMIT changed();
     });
 }
 void AppController::renameThread(const QString &name) {
@@ -384,7 +436,7 @@ void AppController::renameThread(const QString &name) {
          [this, name](auto, auto e) {
              if (e.isEmpty()) {
                  m_state["title"] = name;
-                 emit changed();
+                 Q_EMIT changed();
                  loadThreads();
              }
          });
@@ -398,7 +450,7 @@ void AppController::archiveThread(bool archived) {
             return;
         if (id == m_state["threadId"].toString()) {
             clearThread();
-            emit changed();
+            Q_EMIT changed();
         }
         loadThreads(m_state["archived"].toBool());
     });
@@ -425,12 +477,12 @@ void AppController::chooseModel(const QString &model) {
         m_state["fastAvailable"] = !fast.isEmpty();
         if (fast.isEmpty())
             m_state["fast"] = false;
-        emit changed();
+        Q_EMIT changed();
         return;
     }
     if (!model.isEmpty()) {
         m_state["model"] = model;
-        emit changed();
+        Q_EMIT changed();
     }
 }
 QJsonObject AppController::options() const {
@@ -470,7 +522,7 @@ void AppController::setOption(const QString &key, const QVariant &value) {
         chooseModel(value.toString());
     else if (QStringList{"effort", "plan", "permission", "fast"}.contains(key)) {
         m_state[key] = value;
-        emit changed();
+        Q_EMIT changed();
     } else
         return;
     auto id = m_state["threadId"].toString();
@@ -497,18 +549,128 @@ void AppController::setOption(const QString &key, const QVariant &value) {
                 for (const auto &key : {"model", "effort", "efforts", "plan", "permission", "fast",
                                         "fastAvailable", "fastTier"})
                     m_state[key] = before[key];
-                emit changed();
+                Q_EMIT changed();
             }
         });
     }
 }
+QJsonArray AppController::input(const QString &text) const {
+    QString body = text;
+    QStringList files;
+    QJsonArray images;
+    for (auto v : m_attachments.json()) {
+        const auto attachment = v.toObject();
+        if (attachment["kind"] == "image")
+            images.append(QJsonObject{{"type", "localImage"}, {"path", attachment["path"]}});
+        else
+            files << attachment["path"].toString();
+    }
+    // Codex has no input type for arbitrary files; like `@path` in the CLI, the path in the text is the
+    // reference.
+    if (!files.isEmpty()) {
+        if (!body.trimmed().isEmpty())
+            body += "\n\n";
+        body += (files.size() == 1 ? "Attached file:\n- " : "Attached files:\n- ") + files.join("\n- ");
+    }
+    QJsonArray result;
+    if (!body.trimmed().isEmpty())
+        result.append(QJsonObject{{"type", "text"}, {"text", body}});
+    for (auto image : images)
+        result.append(image);
+    return result;
+}
+void AppController::swapAttachments(const QString &next) {
+    const auto current = m_state["threadId"].toString();
+    if (current == next)
+        return;
+    if (m_attachments.count() > 0)
+        m_stashedAttachments.insert(current, m_attachments.json());
+    else
+        m_stashedAttachments.remove(current);
+    m_attachments.reset(m_stashedAttachments.take(next));
+}
+void AppController::addAttachment(const QString &path) {
+    const QFileInfo info(path);
+    const auto canonical = info.canonicalFilePath();
+    for (auto v : m_attachments.json())
+        if (v.toObject()["path"].toString() == canonical)
+            return;
+    static const QStringList imageTypes{"image/png", "image/jpeg", "image/gif", "image/webp"};
+    const auto mime = QMimeDatabase().mimeTypeForFile(canonical);
+    const bool folder = info.isDir();
+    m_attachments.upsert({{"id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
+                          {"path", canonical},
+                          {"name", info.fileName()},
+                          {"kind", folder                             ? "folder"
+                                   : imageTypes.contains(mime.name()) ? "image"
+                                                                      : "file"},
+                          {"icon", mime.iconName()},
+                          {"url", QUrl::fromLocalFile(canonical).toString(QUrl::FullyEncoded)},
+                          {"sizeText", folder ? QString() : QLocale().formattedDataSize(info.size())}});
+}
+void AppController::attachFiles(const QList<QUrl> &files) {
+    constexpr int limit = 20;
+    for (const auto &url : files) {
+        const auto path = url.toLocalFile();
+        if (path.isEmpty() || !QFileInfo::exists(path))
+            continue;
+        if (m_attachments.count() >= limit) {
+            Q_EMIT error(i18np("You can attach at most %1 file at once.",
+                               "You can attach at most %1 files at once.", limit));
+            return;
+        }
+        addAttachment(path);
+    }
+}
+bool AppController::attachFromMime(const QMimeData *mime) {
+    if (!mime || m_state["threadId"].toString().isEmpty() || m_state["archived"].toBool())
+        return false;
+    if (mime->hasUrls()) {
+        QList<QUrl> local;
+        for (const auto &url : mime->urls())
+            if (url.isLocalFile())
+                local << url;
+        if (!local.isEmpty()) {
+            attachFiles(local);
+            return true;
+        }
+    }
+    // A copied selection often carries a rendered image next to its text; the text wins then.
+    if (mime->hasImage() && !mime->hasText()) {
+        const auto image = qvariant_cast<QImage>(mime->imageData());
+        if (image.isNull())
+            return false;
+        const QDir dir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/attachments");
+        // Sent images stay referenced by their history, so they are kept for a long time.
+        const auto cutoff = QDateTime::currentDateTime().addDays(-60);
+        for (const auto &old : dir.entryInfoList(QDir::Files))
+            if (old.lastModified() < cutoff)
+                QFile::remove(old.absoluteFilePath());
+        const auto path =
+            dir.filePath("clipboard-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + "-" +
+                         QUuid::createUuid().toString(QUuid::Id128).left(6) + ".png");
+        if (!QDir().mkpath(dir.path()) || !image.save(path, "PNG")) {
+            Q_EMIT error(i18n("Could not save the pasted image."));
+            return true;
+        }
+        addAttachment(path);
+        return true;
+    }
+    return false;
+}
+bool AppController::pasteAttachments() {
+    return attachFromMime(QGuiApplication::clipboard()->mimeData());
+}
+void AppController::removeAttachment(const QString &id) {
+    m_attachments.remove(id);
+}
 bool AppController::send(const QString &text) {
-    if (text.trimmed().isEmpty() || m_state["archived"].toBool())
+    if ((text.trimmed().isEmpty() && m_attachments.count() == 0) || m_state["archived"].toBool())
         return false;
     if (text.startsWith('/')) {
         bool ok = slash(text);
         if (ok)
-            emit messageAccepted(text, m_state["threadId"].toString());
+            Q_EMIT messageAccepted(text, m_state["threadId"].toString());
         return ok;
     }
     if (!m_rpc->ready() || m_state["threadId"].toString().isEmpty() || m_sending ||
@@ -516,41 +678,55 @@ bool AppController::send(const QString &text) {
         return false;
     bool busy = m_state["busy"].toBool();
     if (busy && m_turn.isEmpty()) {
-        emit error(i18n("The active turn is not known yet. Try again in a moment."));
+        Q_EMIT error(i18n("The active turn is not known yet. Try again in a moment."));
         return false;
     }
     auto id = m_state["threadId"].toString();
     auto p = busy ? QJsonObject{} : options();
     p["threadId"] = id;
-    p["input"] = QJsonArray{QJsonObject{{"type", "text"}, {"text", text}}};
+    p["input"] = input(text);
+    QStringList sentAttachments;
+    for (auto a : m_attachments.json())
+        sentAttachments << a.toObject()["id"].toString();
     if (busy)
         p["expectedTurnId"] = m_turn;
     m_sending = true;
     const bool implementing = std::exchange(m_implementingPlan, false);
-    call(busy ? "turn/steer" : "turn/start", p, [this, id, text, implementing](auto r, auto e) {
-        m_sending = false;
-        if (e.isEmpty()) {
-            m_newThreads.remove(id);
-            if (m_settings->draft(id) == text)
-                m_settings->saveDraft(id, "");
-            emit messageAccepted(text, id);
-        }
-        if (id != m_state["threadId"].toString())
-            return;
-        if (implementing) {
-            m_state["plan"] = !e.isEmpty();
-            m_state["planReady"] = !e.isEmpty();
-            if (e.isEmpty())
-                m_state["proposedPlan"] = "";
-        }
-        if (e.isEmpty()) {
-            auto turn = r["turn"].toObject();
-            if (!turn.isEmpty())
-                m_turn = turn["id"].toString();
-            m_state["busy"] = true;
-        }
-        emit changed();
-    });
+    call(busy ? "turn/steer" : "turn/start", p,
+         [this, id, text, implementing, sentAttachments](auto r, auto e) {
+             m_sending = false;
+             if (e.isEmpty()) {
+                 // Only what was sent goes away; files added while the request ran stay for the next message.
+                 for (const auto &attachment : sentAttachments)
+                     m_attachments.remove(attachment);
+                 if (m_stashedAttachments.contains(id)) {
+                     QJsonArray rest;
+                     for (auto v : m_stashedAttachments.value(id))
+                         if (!sentAttachments.contains(v.toObject()["id"].toString()))
+                             rest.append(v);
+                     m_stashedAttachments.insert(id, rest);
+                 }
+                 m_newThreads.remove(id);
+                 if (m_settings->draft(id) == text)
+                     m_settings->saveDraft(id, "");
+                 Q_EMIT messageAccepted(text, id);
+             }
+             if (id != m_state["threadId"].toString())
+                 return;
+             if (implementing) {
+                 m_state["plan"] = !e.isEmpty();
+                 m_state["planReady"] = !e.isEmpty();
+                 if (e.isEmpty())
+                     m_state["proposedPlan"] = "";
+             }
+             if (e.isEmpty()) {
+                 auto turn = r["turn"].toObject();
+                 if (!turn.isEmpty())
+                     m_turn = turn["id"].toString();
+                 m_state["busy"] = true;
+             }
+             Q_EMIT changed();
+         });
     return true;
 }
 void AppController::interrupt() {
@@ -569,12 +745,12 @@ bool AppController::implementPlan() {
         m_state["plan"] = true;
         m_implementingPlan = false;
     }
-    emit changed();
+    Q_EMIT changed();
     return accepted;
 }
 void AppController::keepPlanning() {
     m_state["planReady"] = false;
-    emit changed();
+    Q_EMIT changed();
 }
 bool AppController::slash(const QString &text) {
     auto cmd = text.section(' ', 0, 0).toLower(), arg = text.section(' ', 1).trimmed();
@@ -582,26 +758,26 @@ bool AppController::slash(const QString &text) {
         setOption("plan", !m_state["plan"].toBool());
     else if (cmd == "/fast") {
         if (!m_state["fastAvailable"].toBool())
-            emit error(i18n("Fast mode is not available for this model."));
+            Q_EMIT error(i18n("Fast mode is not available for this model."));
         else
             setOption("fast", !m_state["fast"].toBool());
     } else if (cmd == "/new")
         newThread();
     else if (cmd == "/resume")
-        emit navigate("projects");
+        showUnassigned();
     else if (cmd == "/model") {
         if (!arg.isEmpty())
             setOption("model", arg);
         else
-            emit navigate("model");
+            Q_EMIT navigate("model");
     } else if (cmd == "/permissions")
-        emit navigate("permissions");
+        Q_EMIT navigate("permissions");
     else if (cmd == "/mcp") {
         refreshMcp();
-        emit navigate("settings");
+        Q_EMIT navigate("settings");
     } else if (cmd == "/status") {
         refresh();
-        emit navigate("settings");
+        Q_EMIT navigate("settings");
     } else if (cmd == "/compact" || cmd == "/review") {
         auto id = m_state["threadId"].toString();
         if (id.isEmpty())
@@ -616,7 +792,7 @@ bool AppController::slash(const QString &text) {
                            {"text", "/plan · /compact · /model · /permissions · /fast · /new · /resume · "
                                     "/review · /status · /mcp · /help"}});
     else {
-        emit error(i18n("Unknown command: %1", cmd));
+        Q_EMIT error(i18n("Unknown command: %1", cmd));
         return false;
     }
     return true;
@@ -629,7 +805,7 @@ void AppController::login(bool device) {
         auto url = r["authUrl"].toString(r["verificationUrl"].toString());
         m_state["loginInfo"] = r["userCode"].toString();
         m_state["loginPending"] = true;
-        emit changed();
+        Q_EMIT changed();
         if (!url.isEmpty())
             openLink(url);
     });
@@ -678,12 +854,86 @@ void AppController::reloadMcp() {
             refreshMcp();
     });
 }
+namespace {
+// Pictures arrive as base64 inside the history. Keeping them in the message rows would hold every screenshot
+// of a long chat in memory, so each one is stored once as a file and shown by URL instead.
+QString storeImage(const QString &dataUrl) {
+    static const QRegularExpression header("^data:(image/[a-z0-9.+-]+);base64,",
+                                           QRegularExpression::CaseInsensitiveOption);
+    const auto match = header.match(dataUrl);
+    if (!match.hasMatch())
+        return {};
+    const auto bytes = QByteArray::fromBase64(dataUrl.mid(match.capturedLength()).toLatin1());
+    if (bytes.isEmpty())
+        return {};
+    const QDir dir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/images");
+    static bool pruned = false;
+    if (!std::exchange(pruned, true)) {
+        // The history can recreate any of these, so the cache stays bounded by age and total size.
+        auto files = dir.entryInfoList(QDir::Files, QDir::Time | QDir::Reversed);
+        qint64 total = 0;
+        for (const auto &file : files)
+            total += file.size();
+        const auto cutoff = QDateTime::currentDateTime().addDays(-30);
+        for (const auto &file : files)
+            if (file.lastModified() < cutoff || total > (1LL << 30)) {
+                total -= file.size();
+                QFile::remove(file.absoluteFilePath());
+            }
+    }
+    const auto suffix = QMimeDatabase().mimeTypeForName(match.captured(1)).preferredSuffix();
+    const auto path = dir.filePath(QCryptographicHash::hash(bytes, QCryptographicHash::Sha1).toHex() + "." +
+                                   (suffix.isEmpty() ? "img" : suffix));
+    if (!QFileInfo::exists(path)) {
+        QSaveFile file(path);
+        if (!QDir().mkpath(dir.path()) || !file.open(QIODevice::WriteOnly) ||
+            file.write(bytes) != bytes.size() || !file.commit())
+            return {};
+    }
+    return QUrl::fromLocalFile(path).toString(QUrl::FullyEncoded);
+}
+} // namespace
 void AppController::item(QJsonObject o, bool prepend) {
     auto type = o["type"].toString();
     QString text = o["text"].toString();
+    // Pictures shown in the chat: local files by URL, embedded ones as data URLs.
+    QJsonArray images;
+    // Returns the URL the picture is shown from; embedded data is moved out of the row.
+    auto addImage = [&images](const QString &source, const QString &name = {}) {
+        const auto url = source.startsWith("data:image/") ? storeImage(source)
+                         : source.startsWith("file:")     ? source
+                                                          : QString();
+        if (!url.isEmpty())
+            images.append(QJsonObject{{"src", url}, {"name", name}});
+        return url;
+    };
+    auto fileImage = [&addImage](const QString &path) {
+        addImage(QUrl::fromLocalFile(path).toString(QUrl::FullyEncoded), QFileInfo(path).fileName());
+    };
     if (type == "userMessage") {
-        for (auto v : o["content"].toArray())
-            text += v.toObject()["text"].toString();
+        QJsonArray content;
+        for (auto v : o["content"].toArray()) {
+            auto part = v.toObject();
+            text += part["text"].toString();
+            if (part["type"] == "localImage")
+                fileImage(part["path"].toString());
+            else if (part["type"] == "image") {
+                const auto url = part["url"].toString();
+                const auto shown = addImage(url);
+                if (url.startsWith("data:"))
+                    part["url"] = shown;
+            }
+            content.append(part);
+        }
+        o["content"] = content;
+    } else if (type == "imageView") {
+        text = o["path"].toString();
+        fileImage(text);
+    } else if (type == "imageGeneration") {
+        const auto saved = o["savedPath"].toString();
+        text = o["revisedPrompt"].toString(saved);
+        if (!saved.isEmpty())
+            fileImage(saved);
     } else if (type == "commandExecution")
         text = o["command"].toString() + "\n" + o["aggregatedOutput"].toString();
     else if (type == "fileChange") {
@@ -694,14 +944,45 @@ void AppController::item(QJsonObject o, bool prepend) {
     } else if (type == "reasoning") {
         for (auto v : o["summary"].toArray())
             text += v.toString() + "\n";
-    } else if (type == "mcpToolCall")
+    } else if (type == "mcpToolCall") {
+        // Base64 pictures would drown the text, so they are shown as images and left out of it.
+        auto result = o["result"].toObject();
+        QJsonArray content;
+        for (auto v : result["content"].toArray()) {
+            auto part = v.toObject();
+            if (part["type"] == "image" && part.contains("data")) {
+                part["url"] = addImage("data:" + part["mimeType"].toString("image/png") + ";base64," +
+                                       part["data"].toString());
+                part.remove("data");
+            }
+            content.append(part);
+        }
+        if (result.contains("content")) {
+            result["content"] = content;
+            o["result"] = result;
+        }
         text = o["server"].toString() + " / " + o["tool"].toString() + "\n" +
-               QString::fromUtf8(QJsonDocument(o["result"].toObject()).toJson(QJsonDocument::Indented));
-    else if (type == "contextCompaction")
+               QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Indented));
+    } else if (type == "dynamicToolCall" && o["contentItems"].isArray()) {
+        QStringList lines;
+        QJsonArray parts;
+        for (auto v : o["contentItems"].toArray()) {
+            auto part = v.toObject();
+            if (part["type"] == "inputText")
+                lines << part["text"].toString();
+            else if (part["type"] == "inputImage")
+                part["imageUrl"] = addImage(part["imageUrl"].toString());
+            parts.append(part);
+        }
+        o["contentItems"] = parts;
+        text = o["tool"].toString() + "\n" + lines.join("\n");
+    } else if (type == "contextCompaction")
         text = i18n("Context compacted");
     else if (text.isEmpty())
         text = QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Indented));
     o["text"] = text;
+    if (!images.isEmpty())
+        o["images"] = images;
     // Collapsed cards show one line; computing it here keeps QML from scanning long output.
     o["summary"] = text.left(text.indexOf('\n')).left(300);
     m_messages.upsert(o, prepend);
@@ -716,7 +997,7 @@ void AppController::notify(const QString &m, const QJsonObject &p) {
         m_state["loginInfo"] = "";
         m_loginId.clear();
         if (!p["success"].toBool())
-            emit error(p["error"].toString());
+            Q_EMIT error(p["error"].toString());
         refresh();
         return;
     }
@@ -738,7 +1019,7 @@ void AppController::notify(const QString &m, const QJsonObject &p) {
             }
         }
         m_state["limits"] = summaries.join("\n");
-        emit changed();
+        Q_EMIT changed();
         return;
     }
     if (m == "serverRequest/resolved") {
@@ -761,7 +1042,7 @@ void AppController::notify(const QString &m, const QJsonObject &p) {
             }
         if (id == m_state["threadId"].toString())
             m_state["title"] = p["threadName"].toString();
-        emit changed();
+        Q_EMIT changed();
         return;
     }
     if (m == "thread/status/changed") {
@@ -772,7 +1053,7 @@ void AppController::notify(const QString &m, const QJsonObject &p) {
             }
         if (id == m_state["threadId"].toString())
             m_state["busy"] = p["status"].toObject()["type"] == "active";
-        emit changed();
+        Q_EMIT changed();
     }
     if (!id.isEmpty() && id != m_state["threadId"].toString())
         return;
@@ -794,7 +1075,7 @@ void AppController::notify(const QString &m, const QJsonObject &p) {
                     m_messages.upsert({{"id", v.toObject()["id"]}, {"status", status}});
         auto e = p["turn"].toObject()["error"].toObject();
         if (!e.isEmpty())
-            emit error(e["message"].toString());
+            Q_EMIT error(e["message"].toString());
         m_state["planReady"] = m_state["plan"].toBool() && !m_state["proposedPlan"].toString().isEmpty() &&
                                p["turn"].toObject()["status"] == "completed";
         m_git->refresh();
@@ -833,9 +1114,9 @@ void AppController::notify(const QString &m, const QJsonObject &p) {
         m_state["contextWindow"] = window;
         m_state["totalTokens"] = u["total"].toObject()["totalTokens"].toDouble();
     } else if (m == "error")
-        emit error(p["error"].toObject()["message"].toString());
+        Q_EMIT error(p["error"].toObject()["message"].toString());
     if (m_state != before)
-        emit changed();
+        Q_EMIT changed();
 }
 void AppController::receiveRequest(const QJsonValue &id, const QString &m, const QJsonObject &p) {
     if (m == "currentTime/read") {

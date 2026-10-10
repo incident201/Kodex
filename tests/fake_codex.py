@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Deterministic app-server byte proxy for integration tests. No network or auth."""
 import base64
 import hashlib
@@ -12,7 +17,7 @@ from pathlib import Path
 validate = None
 if os.environ.get('KODEX_VALIDATE_SCHEMA'):
     from jsonschema import Draft7Validator
-    schema = json.loads((Path(__file__).parent.parent / 'protocol/codex-0.156.1.json').read_text())
+    schema = json.loads((Path(__file__).parent.parent / 'protocol/codex-0.162.1.json').read_text())
     def validate(message):
         if 'method' in message:
             name = 'ClientRequest' if 'id' in message else 'ClientNotification'
@@ -24,7 +29,7 @@ args = sys.argv[1:]
 if args == ['app-server', 'daemon', 'start']:
     sys.exit(0)
 if args == ['app-server', 'daemon', 'version']:
-    print(json.dumps({'cliVersion': '0.156.1', 'appServerVersion': '0.156.1'}))
+    print(json.dumps({'cliVersion': '0.162.1', 'appServerVersion': '0.162.1'}))
     sys.exit(0)
 if args != ['app-server', 'proxy']:
     sys.exit(2)
@@ -53,6 +58,8 @@ def event(method, params):
 
 project = {'id': 'p1', 'name': 'Fixture', 'roots': [{'path': os.environ.get('KODEX_FIXTURE_DIR', '/tmp')}]}
 thread = {'id': 't1', 'name': 'Fixture task', 'preview': '', 'status': {'type': 'idle'}, 'updatedAt': int(time.time()) - 3600}
+# A session that belongs to no project and lives in another folder, like `codex resume --all` shows.
+loose = dict(thread, id='loose', name='Loose session', cwd=os.environ.get('KODEX_LOOSE_DIR', '/tmp'))
 deferred = []
 unpersisted = set()
 archived = False
@@ -103,11 +110,13 @@ while True:
     elif method == 'model/list':
         result = {'data': [{'id': 'fixture-model', 'model': 'fixture-model', 'displayName': 'Fixture model', 'isDefault': True, 'defaultReasoningEffort': 'medium', 'supportedReasoningEfforts': [{'reasoningEffort': 'medium'}, {'reasoningEffort': 'high'}], 'serviceTiers': [{'id': 'fast', 'name': 'Fast'}]}]}
     elif method == 'project/list':
-        result = {'data': [project]}
+        result = {'data': [] if os.environ.get('KODEX_NO_PROJECTS') else [project]}
     elif method == 'project/create':
         result = {'project': project}
     elif method == 'thread/list':
-        result = {'data': [thread] if bool(msg['params'].get('archived')) == archived else []}
+        params = msg['params']
+        listed = loose if 'projectId' in params and params['projectId'] is None else thread
+        result = {'data': [listed] if bool(params.get('archived')) == archived else []}
     elif method == 'thread/archive':
         archived = True
     elif method == 'thread/unarchive':
@@ -116,9 +125,10 @@ while True:
         result = {'thread': thread}
     elif method == 'thread/start':
         unpersisted.add('fresh-thread')
-        result = {'thread': dict(thread, id='fresh-thread'), 'model': 'fixture-model', 'reasoningEffort': 'medium', 'cwd': project['roots'][0]['path']}
+        result = {'thread': dict(thread, id='fresh-thread'), 'model': 'fixture-model', 'reasoningEffort': 'medium', 'cwd': msg['params'].get('cwd') or project['roots'][0]['path']}
     elif method == 'thread/resume':
-        result = {'thread': thread, 'model': 'fixture-model', 'reasoningEffort': 'medium'}
+        resumed = loose if msg['params']['threadId'] == 'loose' else thread
+        result = {'thread': resumed, 'model': 'fixture-model', 'reasoningEffort': 'medium'}
     elif method == 'thread/turns/list':
         result = {'data': [{'id': 'old-turn', 'status': 'completed', 'items': [{'id': 'old-user', 'type': 'userMessage', 'content': [{'type': 'text', 'text': 'Hello'}]}, {'id': 'old-agent', 'type': 'agentMessage', 'text': 'Earlier response'}]}]}
     elif method == 'mcpServerStatus/list':

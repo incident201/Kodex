@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "maintenance.h"
 #include <KLocalizedString>
 #include <QDateTime>
@@ -15,7 +21,7 @@ void Maintenance::setRpc(RpcClient *rpc) {
         if (method == "remoteControl/status/changed") {
             m_state["remote"] = p["status"].toString();
             m_state["serverName"] = p["serverName"].toString();
-            emit changed();
+            Q_EMIT changed();
         }
     });
     m_pairTimer.setInterval(3000);
@@ -25,7 +31,7 @@ void Maintenance::setRpc(RpcClient *rpc) {
             m_pairCodes = {};
             m_state["pairing"] = "";
             m_state["pairingStatus"] = i18n("Pairing code expired.");
-            emit changed();
+            Q_EMIT changed();
             return;
         }
         if (!m_rpc->ready())
@@ -36,7 +42,7 @@ void Maintenance::setRpc(RpcClient *rpc) {
                 m_pairCodes = {};
                 m_state["pairing"] = "";
                 m_state["pairingStatus"] = i18n("Device paired.");
-                emit changed();
+                Q_EMIT changed();
             }
         });
     });
@@ -48,13 +54,13 @@ void Maintenance::refreshRemote() {
         if (e.isEmpty()) {
             m_state["remote"] = r["status"].toString();
             m_state["serverName"] = r["serverName"].toString();
-            emit changed();
+            Q_EMIT changed();
         }
     });
 }
 void Maintenance::appendLog(const QString &s) {
     m_state["log"] = (m_state["log"].toString() + Settings::redact(s)).right(100000);
-    emit changed();
+    Q_EMIT changed();
 }
 void Maintenance::run(const QString &program, const QStringList &args, const QProcessEnvironment &env,
                       Done cb, bool log) {
@@ -111,13 +117,13 @@ void Maintenance::codex(const QStringList &a, Done cb) {
 void Maintenance::versions() {
     codex({"app-server", "daemon", "version"}, [this](int c, auto out, auto err) {
         if (c) {
-            emit error(Settings::redact(QString::fromUtf8(err)));
+            Q_EMIT error(Settings::redact(QString::fromUtf8(err)));
             return;
         }
         auto j = QJsonDocument::fromJson(out).object();
         m_state["version"] = j["cliVersion"].toString();
         m_state["daemonVersion"] = j["appServerVersion"].toString();
-        emit changed();
+        Q_EMIT changed();
     });
 }
 void Maintenance::update() {
@@ -127,13 +133,13 @@ void Maintenance::update() {
     if (m_settings->value("updateMode") == "builtin") {
         auto path = QFileInfo(m_settings->executable()).canonicalFilePath();
         if (!path.contains("/.codex/packages/standalone/")) {
-            emit error(i18n(
+            Q_EMIT error(i18n(
                 "Built-in updates require a standalone Codex installation. Configure an external updater."));
             return;
         }
     }
     m_state["busy"] = true;
-    emit changed();
+    Q_EMIT changed();
     if (m_settings->value("updateMode") == "external")
         run(
             m_settings->value("updater"), QProcess::splitCommand(m_settings->value("updaterArguments")),
@@ -151,8 +157,8 @@ void Maintenance::update() {
 void Maintenance::install(bool fallback) {
     if (!m_temp.isValid()) {
         m_state["busy"] = false;
-        emit error(i18n("Could not create a temporary directory."));
-        emit changed();
+        Q_EMIT error(i18n("Could not create a temporary directory."));
+        Q_EMIT changed();
         return;
     }
     auto env = m_settings->environment(fallback ? m_settings->value("fallbackProxy") : QString());
@@ -189,15 +195,15 @@ void Maintenance::remote(bool enabled) {
     if (m_state["busy"].toBool())
         return;
     m_state["busy"] = true;
-    emit changed();
+    Q_EMIT changed();
     codex({"app-server", "daemon", enabled ? "enable-remote-control" : "disable-remote-control"},
           [this, enabled](int c, auto, auto err) {
               m_state["busy"] = false;
               if (c)
-                  emit error(Settings::redact(QString::fromUtf8(err)));
+                  Q_EMIT error(Settings::redact(QString::fromUtf8(err)));
               else
                   m_state["remote"] = enabled ? "enabled" : "disabled";
-              emit changed();
+              Q_EMIT changed();
               refreshRemote();
           });
 }
@@ -205,7 +211,7 @@ void Maintenance::pair() {
     if (m_state["busy"].toBool())
         return;
     if (!m_rpc || !m_rpc->ready()) {
-        emit error(i18n("Codex is not connected."));
+        Q_EMIT error(i18n("Codex is not connected."));
         return;
     }
     m_state["busy"] = true;
@@ -213,11 +219,11 @@ void Maintenance::pair() {
     m_pairTimer.stop();
     m_pairCodes = {};
     m_state["pairingStatus"] = "";
-    emit changed();
+    Q_EMIT changed();
     m_rpc->request("remoteControl/pairing/start", {{"manualCode", true}}, [this](auto r, auto err) {
         m_state["busy"] = false;
         if (!err.isEmpty())
-            emit error(Settings::redact(err["message"].toString()));
+            Q_EMIT error(Settings::redact(err["message"].toString()));
         else {
             m_state["pairing"] = r["manualPairingCode"].toString(r["pairingCode"].toString());
             m_pairCodes = {{"pairingCode", r["pairingCode"]}};
@@ -231,21 +237,21 @@ void Maintenance::pair() {
                      QDateTime::fromSecsSinceEpoch(m_pairExpires).toLocalTime().toString("HH:mm:ss"));
             m_pairTimer.start();
         }
-        emit changed();
+        Q_EMIT changed();
     });
 }
 void Maintenance::restart() {
     if (m_state["busy"].toBool())
         return;
     m_state["busy"] = true;
-    emit changed();
-    emit restarting();
+    Q_EMIT changed();
+    Q_EMIT restarting();
     codex({"app-server", "daemon", "restart"}, [this](int c, auto, auto err) {
         m_state["busy"] = false;
         if (c)
-            emit error(Settings::redact(QString::fromUtf8(err)));
-        emit changed();
-        emit restarted();
+            Q_EMIT error(Settings::redact(QString::fromUtf8(err)));
+        Q_EMIT changed();
+        Q_EMIT restarted();
         versions();
     });
 }

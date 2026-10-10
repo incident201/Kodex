@@ -1,7 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #pragma once
 #include "gitservice.h"
 #include "listmodel.h"
 #include "rpcclient.h"
+#include <QMimeData>
 class AppController : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantMap state READ state NOTIFY changed)
@@ -11,6 +18,7 @@ class AppController : public QObject {
     Q_PROPERTY(ListModel *requests READ requests CONSTANT)
     Q_PROPERTY(ListModel *models READ models CONSTANT)
     Q_PROPERTY(ListModel *mcp READ mcp CONSTANT)
+    Q_PROPERTY(ListModel *attachments READ attachments CONSTANT)
   public:
     AppController(RpcClient *, Settings *, GitService *, QObject *p = nullptr);
     QVariantMap state() const { return m_state; }
@@ -20,9 +28,11 @@ class AppController : public QObject {
     ListModel *requests() { return &m_requests; }
     ListModel *models() { return &m_models; }
     ListModel *mcp() { return &m_mcp; }
+    ListModel *attachments() { return &m_attachments; }
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void addProject(const QUrl &folder);
     Q_INVOKABLE void selectProject(const QString &id);
+    Q_INVOKABLE void showUnassigned();
     Q_INVOKABLE void renameProject(const QString &name);
     Q_INVOKABLE void loadThreads(bool archived = false, const QString &cursor = {});
     Q_INVOKABLE void newThread();
@@ -31,6 +41,12 @@ class AppController : public QObject {
     Q_INVOKABLE void archiveThread(bool archived = true);
     Q_INVOKABLE void loadHistory(bool older = true);
     Q_INVOKABLE bool send(const QString &text);
+    // Files and folders chosen in a dialog or dropped on the window; images are sent as images.
+    Q_INVOKABLE void attachFiles(const QList<QUrl> &files);
+    // Attaches clipboard files or a clipboard-only image; false leaves the paste to the text editor.
+    Q_INVOKABLE bool pasteAttachments();
+    bool attachFromMime(const QMimeData *mime);
+    Q_INVOKABLE void removeAttachment(const QString &id);
     Q_INVOKABLE void interrupt();
     Q_INVOKABLE bool implementPlan();
     Q_INVOKABLE void keepPlanning();
@@ -45,7 +61,7 @@ class AppController : public QObject {
     Q_INVOKABLE void openFolder();
     Q_INVOKABLE void openLink(const QString &url);
     Q_INVOKABLE void copy(const QString &text);
-  signals:
+  Q_SIGNALS:
     void changed();
     void error(const QString &);
     void navigate(const QString &page);
@@ -62,12 +78,18 @@ class AppController : public QObject {
     void loadModels(const QString &cursor = {});
     void loadMcp(const QString &cursor = {});
     void chooseModel(const QString &);
+    QJsonArray input(const QString &text) const;
+    void swapAttachments(const QString &nextThread);
+    void addAttachment(const QString &path);
+    QString scope() const;
     QJsonObject options() const;
     bool slash(const QString &);
     RpcClient *m_rpc;
     Settings *m_settings;
     GitService *m_git;
-    ListModel m_projects, m_threads, m_messages, m_requests, m_models, m_mcp;
+    ListModel m_projects, m_threads, m_messages, m_requests, m_models, m_mcp, m_attachments;
+    // Attachments wait with the thread they were added to while another thread is open.
+    QHash<QString, QJsonArray> m_stashedAttachments;
     QVariantMap m_state{{"projectId", ""},     {"cwd", ""},
                         {"threadId", ""},      {"title", ""},
                         {"busy", false},       {"model", ""},
@@ -78,7 +100,7 @@ class AppController : public QObject {
                         {"limits", ""},        {"turnDiff", ""},
                         {"historyCursor", ""}, {"threadsCursor", ""},
                         {"archived", false},   {"loginInfo", ""},
-                        {"loading", false}};
+                        {"loading", false},    {"unassigned", false}};
     QString m_turn, m_loginId;
     bool m_sending = false, m_historyLoading = false;
     bool m_implementingPlan = false;

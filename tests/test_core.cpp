@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "appcontroller.h"
 #include "gitservice.h"
 #include "listmodel.h"
@@ -10,7 +16,7 @@
 #include <QtTest>
 class CoreTests : public QObject {
     Q_OBJECT
-  private slots:
+  private Q_SLOTS:
     void initTestCase() { KLocalizedString::setApplicationDomain("kodex"); }
     void conversation() {
         QTemporaryDir dir;
@@ -100,6 +106,293 @@ class CoreTests : public QObject {
         QVERIFY(errors.isEmpty());
         controller.loadThreads();
         QTRY_COMPARE(controller.threads()->count(), 2);
+    }
+    void unassignedSessions() {
+        QTemporaryDir dir, loose;
+        qputenv("KODEX_FIXTURE_DIR", dir.path().toUtf8());
+        qputenv("KODEX_LOOSE_DIR", loose.path().toUtf8());
+        const auto log = dir.filePath("requests.jsonl");
+        qputenv("KODEX_RECORD_REQUESTS", log.toUtf8());
+        auto cleanup = qScopeGuard([] {
+            qunsetenv("KODEX_LOOSE_DIR");
+            qunsetenv("KODEX_RECORD_REQUESTS");
+        });
+        Settings settings(nullptr, dir.filePath("config"));
+        QVERIFY(settings.save({{"executable", QString(SOURCE_DIR "/tests/fake_codex.py")}}));
+        RpcClient rpc(&settings);
+        GitService git;
+        AppController controller(&rpc, &settings, &git);
+        QSignalSpy errors(&controller, &AppController::error);
+        rpc.connectServer();
+        QTRY_COMPARE_WITH_TIMEOUT(controller.state()["projectId"].toString(), "p1", 10000);
+        QTRY_COMPARE(controller.threads()->get(0)["id"].toString(), "t1");
+        controller.showUnassigned();
+        QVERIFY(controller.state()["unassigned"].toBool());
+        QVERIFY(controller.state()["projectId"].toString().isEmpty());
+        QVERIFY(controller.state()["cwd"].toString().isEmpty());
+        QTRY_COMPARE(controller.threads()->get(0)["id"].toString(), "loose");
+        controller.selectThread("loose");
+        QTRY_COMPARE(controller.messages()->count(), 2);
+        // The session's folder drives Git; the list keeps showing every unassigned session.
+        QCOMPARE(controller.state()["cwd"].toString(), loose.path());
+        QTest::qWait(100);
+        QVERIFY(controller.state()["unassigned"].toBool());
+        QVERIFY(controller.state()["projectId"].toString().isEmpty());
+        QCOMPARE(controller.threads()->count(), 1);
+        QCOMPARE(controller.threads()->get(0)["id"].toString(), "loose");
+        controller.newThread();
+        QTRY_COMPARE(controller.state()["threadId"].toString(), "fresh-thread");
+        QTRY_VERIFY(!controller.state()["loading"].toBool());
+        QCOMPARE(controller.threads()->get(0)["id"].toString(), "fresh-thread");
+        QVERIFY(errors.isEmpty());
+        QFile file(log);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QJsonObject listParams, startParams;
+        for (const auto &line : file.readAll().split('\n')) {
+            const auto request = QJsonDocument::fromJson(line).object();
+            const auto params = request["params"].toObject();
+            if (request["method"] == "thread/list" && params.contains("projectId"))
+                listParams = params;
+            if (request["method"] == "thread/start")
+                startParams = params;
+        }
+        QVERIFY(listParams["projectId"].isNull());
+        QVERIFY(!listParams.contains("cwd"));
+        QCOMPARE(listParams["sortKey"].toString(), "updated_at");
+        QCOMPARE(startParams["cwd"].toString(), loose.path());
+        QVERIFY(!startParams.contains("projectId"));
+        controller.selectProject("p1");
+        QVERIFY(!controller.state()["unassigned"].toBool());
+        QTRY_COMPARE(controller.threads()->get(0)["id"].toString(), "t1");
+    }
+    void resumeCommandShowsAllSessions() {
+        QTemporaryDir dir, loose;
+        qputenv("KODEX_FIXTURE_DIR", dir.path().toUtf8());
+        qputenv("KODEX_LOOSE_DIR", loose.path().toUtf8());
+        auto cleanup = qScopeGuard([] { qunsetenv("KODEX_LOOSE_DIR"); });
+        Settings settings(nullptr, dir.filePath("config"));
+        QVERIFY(settings.save({{"executable", QString(SOURCE_DIR "/tests/fake_codex.py")}}));
+        RpcClient rpc(&settings);
+        GitService git;
+        AppController controller(&rpc, &settings, &git);
+        rpc.connectServer();
+        QTRY_COMPARE_WITH_TIMEOUT(controller.state()["projectId"].toString(), "p1", 10000);
+        QVERIFY(controller.send("/resume"));
+        QVERIFY(controller.state()["unassigned"].toBool());
+        QTRY_COMPARE(controller.threads()->get(0)["id"].toString(), "loose");
+    }
+    void withoutProjectsShowsUnassigned() {
+        QTemporaryDir dir, loose;
+        qputenv("KODEX_LOOSE_DIR", loose.path().toUtf8());
+        qputenv("KODEX_NO_PROJECTS", "1");
+        auto cleanup = qScopeGuard([] {
+            qunsetenv("KODEX_LOOSE_DIR");
+            qunsetenv("KODEX_NO_PROJECTS");
+        });
+        Settings settings(nullptr, dir.filePath("config"));
+        QVERIFY(settings.save({{"executable", QString(SOURCE_DIR "/tests/fake_codex.py")}}));
+        RpcClient rpc(&settings);
+        GitService git;
+        AppController controller(&rpc, &settings, &git);
+        rpc.connectServer();
+        QTRY_VERIFY_WITH_TIMEOUT(controller.state()["unassigned"].toBool(), 10000);
+        QCOMPARE(controller.projects()->count(), 0);
+        QTRY_COMPARE(controller.threads()->count(), 1);
+        QCOMPARE(controller.threads()->get(0)["cwd"].toString(), loose.path());
+        QCOMPARE(settings.draft("last-project"), "unassigned");
+    }
+    void attachmentsAreSentWithTheMessage() {
+        QTemporaryDir dir;
+        qputenv("KODEX_FIXTURE_DIR", dir.path().toUtf8());
+        const auto log = dir.filePath("requests.jsonl");
+        qputenv("KODEX_RECORD_REQUESTS", log.toUtf8());
+        auto cleanup = qScopeGuard([] { qunsetenv("KODEX_RECORD_REQUESTS"); });
+        Settings settings(nullptr, dir.filePath("config"));
+        QVERIFY(settings.save({{"executable", QString(SOURCE_DIR "/tests/fake_codex.py")}}));
+        RpcClient rpc(&settings);
+        GitService git;
+        AppController controller(&rpc, &settings, &git);
+        QSignalSpy errors(&controller, &AppController::error);
+        rpc.connectServer();
+        QTRY_COMPARE_WITH_TIMEOUT(controller.threads()->count(), 1, 10000);
+        controller.selectThread("t1");
+        QTRY_COMPARE(controller.messages()->count(), 2);
+        QImage image(40, 30, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const auto png = dir.filePath("shot.png");
+        QVERIFY(image.save(png));
+        QFile note(dir.filePath("notes.txt"));
+        QVERIFY(note.open(QIODevice::WriteOnly));
+        note.write("notes");
+        note.close();
+        QVERIFY(QDir().mkpath(dir.filePath("folder")));
+        controller.attachFiles({QUrl::fromLocalFile(png), QUrl::fromLocalFile(note.fileName()),
+                                QUrl::fromLocalFile(dir.filePath("folder")), QUrl::fromLocalFile(png),
+                                QUrl::fromLocalFile(dir.filePath("missing"))});
+        // Duplicates and missing files are skipped.
+        QCOMPARE(controller.attachments()->count(), 3);
+        QCOMPARE(controller.attachments()->get(0)["kind"].toString(), "image");
+        QCOMPARE(controller.attachments()->get(1)["kind"].toString(), "file");
+        QCOMPARE(controller.attachments()->get(2)["kind"].toString(), "folder");
+        // They wait with their thread while another one is open.
+        controller.newThread();
+        QTRY_COMPARE(controller.state()["threadId"].toString(), "fresh-thread");
+        QCOMPARE(controller.attachments()->count(), 0);
+        QTRY_VERIFY(!controller.state()["loading"].toBool());
+        controller.selectThread("t1");
+        QCOMPARE(controller.attachments()->count(), 3);
+        QTRY_VERIFY(!controller.state()["loading"].toBool());
+        controller.removeAttachment(controller.attachments()->get(2)["id"].toString());
+        QVERIFY(controller.send("Please review"));
+        QTRY_COMPARE(controller.attachments()->count(), 0);
+        QVERIFY(errors.isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo(log).size() > 1000, 3000);
+        QFile file(log);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QJsonArray input;
+        for (const auto &line : file.readAll().split('\n')) {
+            const auto request = QJsonDocument::fromJson(line).object();
+            if (request["method"] == "turn/start")
+                input = request["params"].toObject()["input"].toArray();
+        }
+        QCOMPARE(input.size(), 2);
+        QCOMPARE(input[0].toObject()["type"].toString(), "text");
+        QCOMPARE(input[0].toObject()["text"].toString(),
+                 "Please review\n\nAttached file:\n- " + QFileInfo(note.fileName()).canonicalFilePath());
+        QCOMPARE(input[1].toObject()["type"].toString(), "localImage");
+        QCOMPARE(input[1].toObject()["path"].toString(), QFileInfo(png).canonicalFilePath());
+    }
+    void pastedAttachments() {
+        QTemporaryDir dir;
+        qputenv("KODEX_FIXTURE_DIR", dir.path().toUtf8());
+        qputenv("XDG_DATA_HOME", dir.filePath("data").toUtf8());
+        auto cleanup = qScopeGuard([] { qunsetenv("XDG_DATA_HOME"); });
+        Settings settings(nullptr, dir.filePath("config"));
+        QVERIFY(settings.save({{"executable", QString(SOURCE_DIR "/tests/fake_codex.py")}}));
+        RpcClient rpc(&settings);
+        GitService git;
+        AppController controller(&rpc, &settings, &git);
+        rpc.connectServer();
+        QTRY_COMPARE_WITH_TIMEOUT(controller.threads()->count(), 1, 10000);
+        QFile note(dir.filePath("notes.txt"));
+        QVERIFY(note.open(QIODevice::WriteOnly));
+        note.write("notes");
+        note.close();
+        QMimeData files;
+        files.setUrls({QUrl::fromLocalFile(note.fileName())});
+        QVERIFY(!controller.attachFromMime(&files)); // no task is open yet
+        controller.selectThread("t1");
+        QTRY_COMPARE(controller.messages()->count(), 2);
+        QVERIFY(controller.attachFromMime(&files));
+        QCOMPARE(controller.attachments()->count(), 1);
+        QImage image(40, 30, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        QMimeData picture;
+        picture.setImageData(image);
+        QVERIFY(controller.attachFromMime(&picture));
+        QCOMPARE(controller.attachments()->count(), 2);
+        const auto pasted = controller.attachments()->get(1);
+        QCOMPARE(pasted["kind"].toString(), "image");
+        QVERIFY(pasted["path"].toString().startsWith(
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/attachments/"));
+        QCOMPARE(QImage(pasted["path"].toString()).size(), image.size());
+        // A copied selection with text and a rendered image, plain text, and web links stay ordinary pastes.
+        QMimeData both;
+        both.setImageData(image);
+        both.setText("cells");
+        QVERIFY(!controller.attachFromMime(&both));
+        QMimeData text;
+        text.setText("plain");
+        QVERIFY(!controller.attachFromMime(&text));
+        QMimeData web;
+        web.setUrls({QUrl("https://example.test/a.png")});
+        QVERIFY(!controller.attachFromMime(&web));
+        QCOMPARE(controller.attachments()->count(), 2);
+    }
+    void imagesInChat() {
+        QTemporaryDir dir;
+        qputenv("XDG_CACHE_HOME", dir.filePath("cache").toUtf8());
+        auto cleanup = qScopeGuard([] { qunsetenv("XDG_CACHE_HOME"); });
+        Settings settings(nullptr, dir.filePath("config"));
+        QVERIFY(settings.save({{"executable", QString(SOURCE_DIR "/tests/fake_codex.py")}}));
+        RpcClient rpc(&settings);
+        GitService git;
+        AppController controller(&rpc, &settings, &git);
+        rpc.connectServer();
+        QTRY_COMPARE_WITH_TIMEOUT(controller.threads()->count(), 1, 10000);
+        controller.selectThread("t1");
+        QTRY_COMPARE(controller.messages()->count(), 2);
+        auto show = [&](const QJsonObject &item) {
+            rpc.ingest(
+                {{"method", "item/completed"}, {"params", QJsonObject{{"threadId", "t1"}, {"item", item}}}});
+            return controller.messages()->get(controller.messages()->count() - 1);
+        };
+        auto sources = [](const QVariantMap &record) {
+            QStringList result;
+            for (const auto &image : record["images"].toList())
+                result << image.toMap()["src"].toString();
+            return result;
+        };
+        auto user = show(
+            {{"id", "u"},
+             {"type", "userMessage"},
+             {"content", QJsonArray{QJsonObject{{"type", "text"}, {"text", "see"}},
+                                    QJsonObject{{"type", "localImage"}, {"path", "/tmp/a b.png"}},
+                                    QJsonObject{{"type", "image"}, {"url", "data:image/png;base64,AAAA"}},
+                                    QJsonObject{{"type", "image"}, {"url", "https://example.test/x.png"}}}}});
+        QCOMPARE(user["text"].toString(), "see");
+        // Embedded pictures are stored as files, so the rows never hold their bytes.
+        const auto stored = sources(user);
+        QCOMPARE(stored.size(), 2);
+        QCOMPARE(stored[0], "file:///tmp/a%20b.png");
+        QVERIFY(stored[1].startsWith("file://") && stored[1].endsWith(".png"));
+        QFile embedded(QUrl(stored[1]).toLocalFile());
+        QVERIFY(embedded.open(QIODevice::ReadOnly));
+        QCOMPARE(embedded.readAll(), QByteArray::fromBase64("AAAA"));
+        QVERIFY(!QJsonDocument(QJsonObject::fromVariantMap(user)).toJson().contains("base64"));
+        QCOMPARE(user["images"].toList()[0].toMap()["name"].toString(), "a b.png");
+        auto view = show({{"id", "v"}, {"type", "imageView"}, {"path", "/tmp/shots/one.png"}});
+        QCOMPARE(view["text"].toString(), "/tmp/shots/one.png");
+        QCOMPARE(sources(view), QStringList{"file:///tmp/shots/one.png"});
+        auto generated = show({{"id", "g"},
+                               {"type", "imageGeneration"},
+                               {"status", "completed"},
+                               {"result", ""},
+                               {"revisedPrompt", "a red card"},
+                               {"savedPath", "/tmp/shots/card.png"}});
+        QCOMPARE(generated["text"].toString(), "a red card");
+        QCOMPARE(sources(generated), QStringList{"file:///tmp/shots/card.png"});
+        QVERIFY(
+            sources(show({{"id", "g2"}, {"type", "imageGeneration"}, {"status", "failed"}, {"result", ""}}))
+                .isEmpty());
+        auto mcp =
+            show({{"id", "m"},
+                  {"type", "mcpToolCall"},
+                  {"server", "screens"},
+                  {"tool", "capture"},
+                  {"result",
+                   QJsonObject{{"content", QJsonArray{QJsonObject{{"type", "text"}, {"text", "captured"}},
+                                                      QJsonObject{{"type", "image"},
+                                                                  {"mimeType", "image/png"},
+                                                                  {"data", "QUJDREVGRw=="}}}}}}});
+        QCOMPARE(sources(mcp).size(), 1);
+        QVERIFY(sources(mcp)[0].startsWith("file://"));
+        QFile captured(QUrl(sources(mcp)[0]).toLocalFile());
+        QVERIFY(captured.open(QIODevice::ReadOnly));
+        QCOMPARE(captured.readAll(), QByteArray("ABCDEFG"));
+        QVERIFY(!QJsonDocument(QJsonObject::fromVariantMap(mcp)).toJson().contains("QUJDREVGRw"));
+        QVERIFY(!mcp["text"].toString().contains("QUJDREVGRw"));
+        QVERIFY(mcp["text"].toString().contains("captured"));
+        auto dynamic = show(
+            {{"id", "d"},
+             {"type", "dynamicToolCall"},
+             {"tool", "preview"},
+             {"contentItems",
+              QJsonArray{QJsonObject{{"type", "inputText"}, {"text", "hello"}},
+                         QJsonObject{{"type", "inputImage"}, {"imageUrl", "data:image/png;base64,AAAA"}}}}});
+        QCOMPARE(dynamic["text"].toString(), "preview\nhello");
+        QCOMPARE(sources(dynamic), QStringList{stored[1]}); // the same bytes are stored only once
+        QVERIFY(!QJsonDocument(QJsonObject::fromVariantMap(dynamic)).toJson().contains("base64"));
     }
     void archivedHistoryIsReadOnly() {
         QTemporaryDir dir;
@@ -270,7 +563,7 @@ class CoreTests : public QObject {
         QVERIFY(m.state()["log"].toString().contains("fallback proxy"));
         QVERIFY(m.state()["log"].toString().contains("fixture-installed"));
         QCOMPARE(restarted.count(), 0);
-        QTRY_COMPARE(m.state()["version"].toString(), "0.156.1");
+        QTRY_COMPARE(m.state()["version"].toString(), "0.162.1");
     }
     void pairing() {
         QTemporaryDir dir;
@@ -364,6 +657,62 @@ class CoreTests : public QObject {
         QCOMPARE(custom.value("HTTPS_PROXY"), "socks5h://localhost:1234");
         QCOMPARE(custom.value("https_proxy"), custom.value("HTTPS_PROXY"));
         QCOMPARE(custom.value("NO_PROXY"), "localhost");
+    }
+    void shortPaths() {
+        QTemporaryDir home;
+        const auto saved = qgetenv("HOME");
+        qputenv("HOME", home.path().toUtf8());
+        auto restore = qScopeGuard([&] { qputenv("HOME", saved); });
+        QCOMPARE(Settings::shortPath(home.path()), "~");
+        QCOMPARE(Settings::shortPath(home.path() + "/Vídeos/clip"), "~/Vídeos/clip");
+        QCOMPARE(Settings::shortPath(home.path() + "x/other"), home.path() + "x/other");
+        QCOMPARE(Settings::shortPath("/mnt/Data/Kodex"), "/mnt/Data/Kodex");
+    }
+    void programPaths() {
+        QTemporaryDir dir;
+        QFile tool(dir.filePath("tool"));
+        QVERIFY(tool.open(QIODevice::WriteOnly));
+        tool.write("#!/bin/sh\n");
+        tool.close();
+        QFile::setPermissions(tool.fileName(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        QVERIFY(Settings::resolveProgram(tool.fileName()).isEmpty());
+        QFile::setPermissions(tool.fileName(),
+                              QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+        QCOMPARE(Settings::resolveProgram(" " + tool.fileName() + " "), tool.fileName());
+        QVERIFY(Settings::resolveProgram(dir.path()).isEmpty());
+        QVERIFY(Settings::resolveProgram(dir.filePath("missing")).isEmpty());
+        QVERIFY(Settings::resolveProgram("").isEmpty());
+        QVERIFY(Settings::resolveProgram("kodex-no-such-program").isEmpty());
+        QCOMPARE(Settings::resolveProgram("sh"), QStandardPaths::findExecutable("sh"));
+        QCOMPARE(Settings::localPath(QUrl::fromLocalFile(dir.filePath("a b"))), dir.filePath("a b"));
+        QCOMPARE(Settings::dialogFolder(tool.fileName()), QUrl::fromLocalFile(dir.path()));
+        QCOMPARE(Settings::dialogFolder("kodex-no-such-program"), QUrl::fromLocalFile(QDir::homePath()));
+    }
+    void standardInstall() {
+        QTemporaryDir home;
+        QVERIFY(QDir().mkpath(home.filePath("empty")));
+        const auto savedHome = qgetenv("HOME"), savedPath = qgetenv("PATH");
+        qputenv("HOME", home.path().toUtf8());
+        qputenv("PATH", home.filePath("empty").toUtf8());
+        auto restore = qScopeGuard([&] {
+            qputenv("HOME", savedHome);
+            qputenv("PATH", savedPath);
+        });
+        QCOMPARE(Settings(nullptr, home.filePath("a")).value("executable"), "codex");
+        QVERIFY(QDir().mkpath(home.filePath(".local/bin")));
+        const auto codex = home.filePath(".local/bin/codex");
+        QFile file(codex);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("#!/bin/sh\n");
+        file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+        file.close();
+        Settings settings(nullptr, home.filePath("b"));
+        QCOMPARE(settings.value("executable"), codex);
+        QCOMPARE(settings.executable(), codex);
+        // A bare name is found there even when the session PATH leaves it out.
+        QVERIFY(settings.save({{"executable", "codex"}}));
+        QCOMPARE(settings.executable(), codex);
+        QCOMPARE(Settings::resolveProgram("codex"), codex);
     }
     void redact() {
         auto s = Settings::redact("https://user:secret@example.test:123 path");

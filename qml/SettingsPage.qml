@@ -1,9 +1,15 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-Controls.ScrollView {
+SlimScrollView {
     id: page
     clip: true
     contentWidth: availableWidth
@@ -33,7 +39,11 @@ Controls.ScrollView {
             id: codexForm
             Layout.fillWidth: true
             twinFormLayouts: [updatesForm]
-            Controls.TextField { id: executable; Kirigami.FormData.label: i18n("Executable:"); text: Preferences.values.executable; Layout.fillWidth: true }
+            ProgramField {
+                id: executable; Kirigami.FormData.label: i18n("Codex executable:"); Layout.fillWidth: true
+                text: Preferences.values.executable; dialogTitle: i18n("Select the Codex executable")
+                placeholderText: i18n("Name in PATH or full path")
+            }
             Controls.TextField { id: codexArguments; Kirigami.FormData.label: i18n("Arguments:"); text: Preferences.values.arguments; Layout.fillWidth: true; placeholderText: i18n("Optional, quoted arguments supported") }
             Controls.ComboBox { id: proxyMode; Kirigami.FormData.label: i18n("Proxy:"); property var keys: ["inherit", "none", "custom"]; model: [i18n("Inherit environment"), i18n("No proxy"), i18n("Custom proxy")]; currentIndex: keys.indexOf(Preferences.values.proxyMode) }
             Controls.TextField { id: proxyUrl; Kirigami.FormData.label: i18n("Proxy URL:"); text: Preferences.values.proxyUrl; placeholderText: "http://host:port or socks5h://host:port"; enabled: proxyMode.currentIndex === 2; Layout.fillWidth: true }
@@ -51,7 +61,11 @@ Controls.ScrollView {
             Layout.fillWidth: true
             twinFormLayouts: [codexForm]
             Controls.ComboBox { id: updateMode; Kirigami.FormData.label: i18n("Update method:"); model: [i18n("Standalone installer"), i18n("External updater")]; currentIndex: Preferences.values.updateMode === "external" ? 1 : 0 }
-            Controls.TextField { id: updater; Kirigami.FormData.label: i18n("Updater executable:"); text: Preferences.values.updater; enabled: updateMode.currentIndex === 1; Layout.fillWidth: true }
+            ProgramField {
+                id: updater; Kirigami.FormData.label: i18n("Updater executable:"); Layout.fillWidth: true
+                text: Preferences.values.updater; dialogTitle: i18n("Select the updater program")
+                placeholderText: i18n("Name in PATH or full path"); enabled: updateMode.currentIndex === 1
+            }
             Controls.TextField { id: updaterArguments; Kirigami.FormData.label: i18n("Updater arguments:"); text: Preferences.values.updaterArguments; enabled: updateMode.currentIndex === 1; Layout.fillWidth: true }
         }
         Flow {
@@ -62,7 +76,7 @@ Controls.ScrollView {
         }
         Controls.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; text: i18n("External scripts can override proxy settings. Updates never restart the daemon automatically.") }
         Controls.ProgressBar { Layout.fillWidth: true; indeterminate: true; visible: Maintenance.state.busy }
-        Controls.ScrollView {
+        SlimScrollView {
             visible: Maintenance.state.log.length > 0; Layout.fillWidth: true; Layout.preferredHeight: 160
             Controls.TextArea { text: Maintenance.state.log; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText; font.family: "monospace" }
         }
@@ -96,13 +110,13 @@ Controls.ScrollView {
     }
     Controls.Dialog {
         id: restartDialog; title: i18n("Restart the shared daemon?"); modal: true; anchors.centerIn: parent
-        standardButtons: Controls.Dialog.Ok | Controls.Dialog.Cancel
+        footer: DialogButtons {}
         Controls.Label { width: 380; wrapMode: Text.Wrap; text: i18n("This interrupts active tasks in every connected client, including CLI and remote control. Reconnect after the restart to restore history.") }
         onAccepted: Maintenance.restart()
     }
     Controls.Dialog {
         id: logoutDialog; title: i18n("Sign out of Codex?"); modal: true; anchors.centerIn: parent
-        standardButtons: Controls.Dialog.Ok | Controls.Dialog.Cancel
+        footer: DialogButtons {}
         Controls.Label { width: 350; wrapMode: Text.Wrap; text: i18n("This signs out the shared Codex account, including other clients.") }
         onAccepted: App.logout()
     }

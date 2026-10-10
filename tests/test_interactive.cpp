@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "appcontroller.h"
 #include "maintenance.h"
 #include "richtext.h"
@@ -225,7 +231,7 @@ struct LiveUi {
 
 class InteractiveTests : public QObject {
     Q_OBJECT
-  private slots:
+  private Q_SLOTS:
     void visualDiffThemes() {
         if (!qEnvironmentVariableIsSet("KODEX_LIVE_INTERACTIVE"))
             QSKIP("Real Codex opt-in required");

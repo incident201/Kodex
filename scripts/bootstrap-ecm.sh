@@ -1,4 +1,9 @@
 #!/bin/sh
+
+# SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Optional, local-only ECM bootstrap for systems without extra-cmake-modules.
 set -eu
 kodex_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)

@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #pragma once
 #include "listmodel.h"
 #include <QFileSystemWatcher>
@@ -21,7 +27,7 @@ class GitService : public QObject {
     Q_INVOKABLE void push();
     Q_INVOKABLE void sync();
     static QJsonArray parseStatus(const QByteArray &);
-  signals:
+  Q_SIGNALS:
     void changed();
     void committed();
     void error(const QString &);

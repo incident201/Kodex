@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "listmodel.h"
 static QString key(const QJsonObject &row) {
     return row.value("id").toVariant().toString();
@@ -30,7 +36,7 @@ void ListModel::flush() {
     for (const auto &id : std::exchange(m_dirty, {})) {
         int i = find(id);
         if (i >= 0)
-            emit dataChanged(index(i), index(i));
+            Q_EMIT dataChanged(index(i), index(i));
     }
 }
 void ListModel::reset(const QJsonArray &rows) {
@@ -42,7 +48,7 @@ void ListModel::reset(const QJsonArray &rows) {
         m_rows << r.toObject();
     reindex();
     endResetModel();
-    emit countChanged();
+    Q_EMIT countChanged();
 }
 void ListModel::upsert(QJsonObject row, bool prepend) {
     const auto id = key(row);
@@ -51,7 +57,7 @@ void ListModel::upsert(QJsonObject row, bool prepend) {
         for (auto it = row.begin(); it != row.end(); ++it)
             target[it.key()] = it.value();
         m_dirty.remove(id);
-        emit dataChanged(index(i), index(i));
+        Q_EMIT dataChanged(index(i), index(i));
         return;
     }
     int pos = prepend ? 0 : count();
@@ -61,7 +67,7 @@ void ListModel::upsert(QJsonObject row, bool prepend) {
         --m_front;
     m_index.insert(id, pos + m_front);
     endInsertRows();
-    emit countChanged();
+    Q_EMIT countChanged();
 }
 void ListModel::delta(const QString &id, const QString &text, const QString &type) {
     int i = find(id);
@@ -84,7 +90,7 @@ void ListModel::remove(const QString &id) {
     m_dirty.remove(id);
     reindex();
     endRemoveRows();
-    emit countChanged();
+    Q_EMIT countChanged();
 }
 QJsonArray ListModel::json() const {
     QJsonArray a;

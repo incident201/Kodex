@@ -1,10 +1,10 @@
 # Protocol baseline
 
-`codex-0.156.1.json` is generated from the installed Codex CLI 0.156.1:
+`codex-0.162.1.json` is generated from the installed Codex CLI 0.162.1:
 
 ```sh
 codex app-server generate-json-schema --experimental --out /tmp/codex-schema
-cp /tmp/codex-schema/codex_app_server_protocol.schemas.json protocol/codex-0.156.1.json
+cp /tmp/codex-schema/codex_app_server_protocol.schemas.json protocol/codex-0.162.1.json
 ```
 
 The schema contains no local configuration or account data. It is a development

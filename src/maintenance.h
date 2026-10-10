@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #pragma once
 #include "rpcclient.h"
 #include "settings.h"
@@ -16,7 +22,7 @@ class Maintenance : public QObject {
     Q_INVOKABLE void remote(bool enabled);
     Q_INVOKABLE void pair();
     Q_INVOKABLE void restart();
-  signals:
+  Q_SIGNALS:
     void changed();
     void error(const QString &);
     void restarting();

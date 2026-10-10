@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "gitservice.h"
 #include "settings.h"
 #include <KLocalizedString>
@@ -15,6 +21,10 @@ void GitService::setDirectory(const QString &dir) {
     m_dir = dir;
     m_files.reset();
     m_state["diff"] = "";
+    if (dir.isEmpty()) {
+        m_state["repository"] = false;
+        Q_EMIT changed();
+    }
     if (!m_watcher.directories().isEmpty())
         m_watcher.removePaths(m_watcher.directories());
     if (QFileInfo(dir).isDir())
@@ -88,7 +98,7 @@ void GitService::refresh() {
         }
         m_state["repository"] = c == 0;
         m_files.reset(c == 0 ? parseStatus(out) : QJsonArray{});
-        emit changed();
+        Q_EMIT changed();
         if (c == 0)
             run({"status", "--porcelain=v2", "--branch", "--untracked-files=no"},
                 [this, gen](int, auto out, auto) {
@@ -104,7 +114,7 @@ void GitService::refresh() {
                     m_state["branch"] = branch;
                     m_state["upstream"] = !up.isEmpty();
                     m_state["upstreamName"] = up;
-                    emit changed();
+                    Q_EMIT changed();
                 });
     });
 }
@@ -129,22 +139,22 @@ void GitService::diff(const QString &path, bool staged) {
         if (out.size() > 2 * 1024 * 1024)
             m_state["diff"] = m_state["diff"].toString() + i18n("\nDiff truncated at 2 MiB.");
         if (c > 1)
-            emit error(Settings::redact(QString::fromUtf8(err)));
-        emit changed();
+            Q_EMIT error(Settings::redact(QString::fromUtf8(err)));
+        Q_EMIT changed();
     });
 }
 bool GitService::begin() {
     if (m_state["busy"].toBool() || !m_state["repository"].toBool())
         return false;
     m_state["busy"] = true;
-    emit changed();
+    Q_EMIT changed();
     return true;
 }
 void GitService::finish(const QString &e) {
     m_state["busy"] = false;
     if (!e.isEmpty())
-        emit error(Settings::redact(e));
-    emit changed();
+        Q_EMIT error(Settings::redact(e));
+    Q_EMIT changed();
     refresh();
 }
 void GitService::mutate(const QStringList &a) {
@@ -172,27 +182,27 @@ void GitService::stage(const QString &path, bool staged) {
 }
 void GitService::commit(const QString &message) {
     if (message.trimmed().isEmpty()) {
-        emit error(i18n("Enter a commit message."));
+        Q_EMIT error(i18n("Enter a commit message."));
         return;
     }
     if (!begin())
         return;
     run({"commit", "-m", message}, [this](int c, auto, auto err) {
         if (!c)
-            emit committed();
+            Q_EMIT committed();
         finish(c ? QString::fromUtf8(err) : QString());
     });
 }
 void GitService::push() {
     if (!m_state["upstream"].toBool()) {
-        emit error(i18n("Configure an upstream branch before pushing."));
+        Q_EMIT error(i18n("Configure an upstream branch before pushing."));
         return;
     }
     mutate({"push"});
 }
 void GitService::sync() {
     if (!m_state["upstream"].toBool()) {
-        emit error(i18n("Configure an upstream branch before syncing."));
+        Q_EMIT error(i18n("Configure an upstream branch before syncing."));
         return;
     }
     if (!begin())

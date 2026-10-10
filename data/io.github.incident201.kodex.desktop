@@ -2,11 +2,10 @@
 Type=Application
 Name=Kodex
 GenericName=Codex client
-GenericName[ru]=Клиент Codex
 Comment=Work with Codex on your KDE desktop
-Comment[ru]=Работайте с Codex в KDE
+Keywords=Codex;OpenAI;AI;assistant;coding;agent;
 Exec=kodex
-Icon=org.kde.kodex
+Icon=io.github.incident201.kodex
 Terminal=false
-Categories=Development;Qt;KDE;
+Categories=Qt;KDE;Development;
 StartupNotify=true

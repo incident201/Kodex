@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
@@ -23,7 +29,7 @@ Controls.Frame {
     ColumnLayout {
         anchors.fill: parent
         Kirigami.Heading { id: heading; level: 3; text: card.question ? i18n("Codex has a question") : i18n("Approval required"); Layout.fillWidth: true }
-        Controls.ScrollView {
+        SlimScrollView {
             id: scroll
             objectName: "questionScroll"
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true

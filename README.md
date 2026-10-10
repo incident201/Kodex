@@ -1,156 +1,218 @@
 # Kodex
 
-Нативный клиент Codex для KDE: C++23, Qt Quick, Kirigami и C++ backend.
-Чат, история, Plan mode, вопросы, подтверждения, модели, Fast mode и MCP работают
-через **Codex app-server**. `codex exec --json` не используется.
+A native KDE desktop client for [Codex](https://github.com/openai/codex), written in
+C++23 with Qt Quick, Kirigami and KDE Frameworks.
 
-## Сборка и запуск
+Kodex talks to the **Codex app-server** — the same local daemon the Codex command line
+tool uses — so your account, profile and saved sessions are shared with the CLI.
+It does not use `codex exec --json` and it does not read your credentials.
 
-Проверенная среда: Qt **6.11.2**, KDE Frameworks/Kirigami **6.30.0**,
-Codex CLI **0.156.1**, GCC **16.2.1**, CMake **4.4.3**. Понадобятся Ninja,
-Gettext, Qt Core/Gui/Widgets/Qml/Quick/QuickControls2/Network/Test,
-KF6 CoreAddons/Config/I18n/Kirigami/Wallet/SyntaxHighlighting,
-`qqc2-desktop-style`, Python 3 для тестов и Extra CMake Modules.
+![A task with pictures in the conversation and the Git panel](docs/screenshots/chat.png)
 
-Если ECM отсутствует, можно установить его только для этой сборки:
+> Kodex is an independent community project. It is not affiliated with, endorsed by
+> or sponsored by OpenAI. "Codex" and "OpenAI" are trademarks of their owners.
+
+## Features
+
+- Projects, tasks and history, including the sessions you started from the command
+  line. A separate **Sessions without a project** view lists the sessions that belong to
+  no project, from any folder, like `codex resume --all` does for them.
+- Streaming answers, Plan mode with structured questions, approval requests, `/`
+  commands, model, reasoning effort, permissions and Fast mode.
+- Attachments: files, pictures and screenshots from the clipboard.
+- Pictures in the conversation: your attachments, images Codex opens with
+  `view_image`, generated images and images returned by MCP tools, with a viewer.
+- A Git panel with the working tree, the staged diff and the diff made by Codex, plus
+  commit, push and sync.
+- Codex updates, remote control pairing, MCP server status and proxy settings.
+- Light and dark Breeze themes, translations through KDE's `ki18n` (Russian included).
+
+## Requirements
+
+- Qt 6.11 or newer (Core, Gui, Widgets, Qml, Quick, QuickControls2, Network, Test)
+- KDE Frameworks 6.30 or newer: CoreAddons, Config, I18n, Kirigami, Wallet,
+  SyntaxHighlighting, and Extra CMake Modules
+- `qqc2-desktop-style` and the Breeze icon theme at run time
+- CMake 3.28+, Ninja, GCC or Clang with C++23, GNU gettext
+- Python 3 for the test fixtures
+- The [Codex CLI](https://github.com/openai/codex), installed in `~/.local/bin/codex`
+  or anywhere else on `PATH`. It is developed and tested against **Codex 0.162.1**.
+
+Last tested with Qt 6.12.0, KDE Frameworks 6.30.0, GCC 16.2.1, CMake 4.4.4 and
+Codex 0.162.1.
+
+On Arch Linux:
 
 ```sh
-./scripts/bootstrap-ecm.sh
+sudo pacman -S --needed base-devel cmake ninja gettext extra-cmake-modules \
+    qt6-base qt6-declarative kcoreaddons kconfig ki18n kirigami kwallet \
+    syntax-highlighting qqc2-desktop-style breeze-icons
 ```
 
+If Extra CMake Modules is not packaged for your system, `scripts/bootstrap-ecm.sh`
+builds a local copy into `.deps/` that the build picks up automatically.
+
+## Build and run
+
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$HOME/.local"
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ./build/kodex
 ```
 
-Необязательная установка в меню приложений:
+To install it into your application menu:
 
 ```sh
 cmake --install build --prefix "$HOME/.local"
 ```
 
-`--settings` открывает настройки, `--offline` не подключается к Codex.
-`--smoke-test` завершает приложение после загрузки интерфейса;
-`--screenshot /tmp/kodex.png` сохраняет снимок окна для проверки оформления.
+Command line options: `--settings` opens the settings, `--offline` starts without
+connecting to Codex, `--smoke-test` exits after the interface has loaded and
+`--screenshot FILE` saves a picture of the window.
 
-## Работа
+## Using Kodex
 
-Добавьте локальный каталог как проект и создайте задачу. Задача — thread Codex;
-задачи одного проекта используют общий каталог. Существующие CLI-сессии с этим
-`cwd` появляются в списке задач. Архив скрывает задачу, не удаляя файлы.
-При запуске восстанавливаются последний проект и задача; черновики сохраняются
-отдельно для каждой задачи. `Ctrl+N` — новая задача, `Ctrl+Enter` — отправка,
-`Ctrl+,` — настройки, `Ctrl+Shift+D` — панель изменений.
+Add a folder as a project and start a task, or open **Sessions without a project** to
+continue a session from the command line. Selecting a session shows its folder in the
+Git panel, and *New task* starts a session in the same folder.
 
-Модель, reasoning effort и доступный Fast tier берутся из каталога сервера.
-Компактная строка над полем ввода содержит меню модели, effort, доступа и
-переключатели Plan/Fast. Изменения режима относятся к следующим ходам.
-«Настройки сессии» восстанавливают разрешения, с которыми сессия была открыта.
-Серверные ограничения имеют приоритет; отклонённое изменение не применяется.
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+N` | New task |
+| `Ctrl+Enter` | Send the message |
+| `Ctrl+,` | Settings |
+| `Ctrl+Shift+D` | Show or hide the Git panel |
+| `Ctrl+V` | Paste text, copied files or a screenshot |
 
-Поддерживаются `/plan`, `/compact`, `/model [id]`, `/permissions`, `/fast`,
-`/new`, `/resume`, `/review`, `/status`, `/mcp`, `/help`.
-Выполнение `/review` проверяет незакоммиченные изменения текущего каталога.
-Во время ответа отправка сообщения использует `turn/steer`; остановка —
-`turn/interrupt`. При ошибке отправки текст остаётся в редакторе.
+Supported commands: `/plan`, `/compact`, `/model [id]`, `/permissions`, `/fast`,
+`/new`, `/resume` (opens **Sessions without a project**), `/review` (reviews the
+uncommitted changes of the current folder), `/status`, `/mcp` and `/help`. While Codex
+is answering,
+sending a message steers the current turn; *Stop* interrupts it. If sending fails, the
+text stays in the editor. Drafts are saved per task.
 
-Git-панель разделяет рабочий каталог и diff ответа Codex. Коммит включает
-только индекс. Push и Sync требуют уже настроенного upstream. Sync выполняет
-fetch, fast-forward и push; грязное дерево или разошедшиеся ветки требуют
-решения пользователя. Credentials и SSH остаются у системного Git. Для
-интерактивной авторизации настройте системный credential helper/SSH agent.
+The model, reasoning effort and Fast tier come from the server's catalog. Changes
+apply to the following turns. *Session settings* restores the permissions the session
+was opened with, and server restrictions always win.
 
-## Codex, авторизация и прокси
+### Attachments and pictures
 
-По умолчанию используется `codex` из PATH. Можно выбрать другой executable,
-включая `codex-proxy`, и отдельные аргументы. Shell для запуска Codex не нужен.
-Транспорт подключается через `codex app-server proxy` к общему daemon. Этот
-proxy передаёт WebSocket-поток с HTTP Upgrade, а не JSONL. Приложение проверяет
-handshake, разбирает кадры, отвечает на ping и маршрутизирует JSON-RPC в обе
-стороны. Разрыв соединения не приводит к повторной отправке пользовательской
-команды. Закрытие Kodex не останавливает daemon или другие клиенты.
+Use the paperclip button, drop files on the window, or paste with `Ctrl+V`: copied files
+and screenshots both become attachments. PNG, JPEG, GIF and WebP files are sent as
+images; other files and folders are sent as paths in the message, like `@path` in the
+CLI. Pictures pasted from the clipboard are saved in `~/.local/share/kodex/attachments`
+and removed after 60 days.
 
-Вход ChatGPT выполняет app-server через системный браузер либо device code.
-Kodex не читает `auth.json`, не запрашивает API key и не управляет токенами.
-Существующая CLI-авторизация продолжает работать. Выход затрагивает общий
-аккаунт Codex и требует подтверждения в интерфейсе.
+Pictures in the conversation open in a viewer when you click them. Pictures that arrive
+embedded in the history are stored once as files in `~/.cache/kodex/images` (30 days or
+1 GiB at most), so a long conversation keeps only URLs in memory. Thumbnails are decoded
+at the size shown and released when a message scrolls out of view.
 
-В настройках прокси доступны наследование окружения, отключение и свой URL:
-HTTP/HTTPS/SOCKS5/SOCKS5h. Пароль вводится отдельно и хранится в KWallet;
-имя пользователя можно указать в URL. Окружение передаётся дочерним процессам,
-с исключениями localhost через `NO_PROXY`. Wrapper и внешний updater могут
-переопределить это окружение своими настройками.
+### Git
 
-Работающий daemon сохраняет окружение старого запуска. После сохранения новых
-настроек используйте отдельную кнопку перезапуска. Она предупреждает о
-прерывании активных задач всех клиентов. Перезапуск не происходит автоматически.
+The Git panel separates the working tree from the diff Codex made. A commit includes
+only the index. Push and Sync need an upstream branch; Sync fetches, fast-forwards and
+pushes, and stops when the tree is dirty or the branches diverged. Credentials and SSH
+stay with the system Git, so configure a credential helper or SSH agent for
+interactive authentication.
 
-## Обновление и remote-control
+## Codex, sign-in and proxy
 
-При первом запуске обнаруживается `codex-update`, если он есть в PATH.
-Можно выбрать внешний updater с аргументами либо встроенный установщик для
-standalone-версии Codex. Встроенное обновление скачивает официальный
-`https://chatgpt.com/codex/install.sh` во временный файл и запускает его только
-после успешной HTTPS-загрузки. Для загрузки есть резервный прокси. Ошибка
-самой установки требует явного повтора; частично выполненный установщик
-автоматически не перезапускается. Пакетные установки не заменяются
-standalone-версией. Журнал обновления очищается от URL credentials.
+By default Kodex runs `~/.local/bin/codex`, the standard installation (or `codex` from
+`PATH` if that file does not exist), and uses the same `~/.codex` profile and sessions
+as the CLI. A bare name is searched in `PATH` and in `~/.local/bin`. In the settings you
+can type a path or choose it with the *Browse…* button; the line below the field shows
+which file will actually run. You can also set another executable, such as
+`codex-proxy`, and extra arguments. No shell is involved.
 
-Remote-control включает штатный доступ к этому компьютеру. Pairing вызывает
-`remoteControl/pairing/start` через app-server — штатное сопряжение Codex;
-показываются код, срок действия и успешное подключение. Код остаётся только в памяти окна.
-Отключение remote-control сохраняет локальный daemon. Для сопряжения нужен
-телефон пользователя; подключение Kodex к другим компьютерам в v0.1 не входит.
+Kodex connects through `codex app-server proxy` to the shared daemon. That proxy carries
+a WebSocket stream after an HTTP Upgrade, not JSONL. Closing Kodex does not stop the
+daemon or other clients, and a lost connection never resends your command.
 
-## Проверки
+Sign-in is done by the app-server through the system browser or a device code. Kodex
+never reads `auth.json`, never asks for an API key and never manages tokens. Signing
+out affects the shared Codex account and asks for confirmation.
+
+The proxy settings can inherit the environment, disable the proxy or use your own URL
+(HTTP, HTTPS, SOCKS5, SOCKS5h). The password is entered separately and stored in KWallet.
+A running daemon keeps the environment it started with; use the restart button after
+saving new settings. It warns that every client's active tasks are interrupted and never
+restarts on its own.
+
+## Updates and remote control
+
+If `codex-update` is found in `PATH` or `~/.local/bin`, it is offered as an external
+updater. Otherwise the built-in installer downloads the official install script over
+HTTPS into a temporary file and runs it only after a successful download; a fallback
+proxy can be configured for the download. A failed installation needs an explicit retry,
+package-manager installations are never replaced by the standalone build, and URL
+credentials are removed from the log. The daemon is never restarted automatically.
+
+Remote control enables the standard Codex access to this computer, and pairing uses the
+app-server's `remoteControl/pairing/start`. The code is shown with its expiry time and
+kept only in memory. Disabling remote control keeps the local daemon.
+
+## Localization
+
+Kodex is translated with KDE's `ki18n`; the source language is English and a Russian
+translation is included. The language can be chosen in the settings and applies after a
+restart. See [CONTRIBUTING.md](CONTRIBUTING.md#translations) to add a language.
+
+## Tests
 
 ```sh
 ctest --test-dir build --output-on-failure
 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software ./build/kodex --offline --smoke-test
-KODEX_LIVE_TEST=1 ./build/kodex_tests liveHandshake
-# Необязательно: один короткий реальный ответ, расходует лимит аккаунта.
-KODEX_LIVE_TURN=1 ./build/kodex_tests liveTurn
-# Полный сценарий приложения: временный проект, файл, diff, история,
-# окно Kodex и локальный коммит. Использует настоящий аккаунт Codex.
-KODEX_LIVE_WORKFLOW=1 ./build/kodex_live_tests
-# Реальные вопросы/план/реализация, модели, остановка, approvals и архив.
-QT_QPA_PLATFORMTHEME=kde KODEX_LIVE_INTERACTIVE=1 ./build/kodex_interactive_tests
-# Два отдельных процесса с настоящими KDE-палитрами Light/Dark.
-./scripts/test-native-ui.sh
 ```
 
-Дополнительная проверка сериализации по JSON Schema (зависимости только для тестов):
+The regular tests use isolated settings, a fake app-server and temporary Git
+repositories with a local bare remote. They never touch your Codex installation.
+
+Tests that need a real, signed-in Codex are opt-in and use up account limits:
+
+```sh
+KODEX_LIVE_TEST=1 ./build/kodex_tests liveHandshake
+KODEX_LIVE_TURN=1 ./build/kodex_tests liveTurn          # one short, read-only answer
+KODEX_LIVE_WORKFLOW=1 ./build/kodex_live_tests          # temporary project, file, diff, commit
+QT_QPA_PLATFORMTHEME=kde KODEX_LIVE_INTERACTIVE=1 ./build/kodex_interactive_tests
+./scripts/test-native-ui.sh                             # separate processes, Light and Dark palettes
+```
+
+An optional check validates the serialized requests against the JSON Schema:
 
 ```sh
 python -m pip install --target .deps/python -r tests/requirements.txt
 KODEX_VALIDATE_SCHEMA=1 PYTHONPATH="$PWD/.deps/python" ./build/kodex_tests conversation
 ```
 
-Обычные тесты используют изолированные настройки, fake app-server и временные
-Git-репозитории с локальным bare remote. Реальный тест ответа использует
-временный каталог, ephemeral thread и read-only sandbox; файловые инструменты
-не запрашиваются. Обновление установленного Codex, вход/выход и pairing не
-выполняются обычными тестами.
+The results of the real-Codex runs, and which Codex version each one used, are
+summarized in [docs/verification.md](docs/verification.md).
 
-Подробная матрица реальных проверок и найденных исправлений:
-[docs/verification.md](docs/verification.md).
+## Limits of version 0.1
 
-## Границы v0.1
+The protocol is experimental. The reference is `protocol/codex-0.162.1.json`, generated
+with `codex app-server generate-json-schema --experimental`; a Codex version with the
+daemon, the proxy and the project RPC is required. Newer Codex versions may change the
+protocol, so please report anything that stops working. Unsupported server requests are
+declined explicitly. Standard MCP forms and URL flows work; device attestation and other
+proprietary forms are not emulated.
 
-Протокол experimental; эталон — `protocol/codex-0.156.1.json`, полученный
-командой `codex app-server generate-json-schema --experimental`. Требуется
-версия с daemon/proxy и project RPC. Неподдерживаемые серверные запросы
-отклоняются явно. Стандартные MCP формы и URL flows поддерживаются;
-device attestation и дополнительные proprietary формы не эмулируются.
-Нет редактора кода, merge/rebase UI или менеджера Git worktree.
-Большой diff отображается до 2 МиБ. Секреты прокси остаются в KWallet,
-настройки и черновики — в `kodexrc`; полные RPC payload не журналируются.
+There is no code editor, merge or rebase interface, or Git worktree manager. A diff is
+shown up to 2 MiB. Proxy secrets stay in KWallet, settings and drafts in `kodexrc`, and
+full RPC payloads are never logged. Interactive sign-in, real phone pairing and updating
+a working installation need manual acceptance. The availability of limits, models and
+Fast mode depends on the account and the server.
 
-Интерактивный вход, настоящее сопряжение телефона и обновление рабочей
-установки требуют ручной приёмки. Доступность лимитов, моделей и Fast зависит
-от аккаунта и сервера.
+## Architecture
 
-Архитектура: `RpcClient` — транспорт, `AppController` — сессии и протокол,
-`ListModel` — данные QML, `GitService` — Git, `Settings` — KConfig/KWallet,
-`Maintenance` — daemon/remote-control/updates. QML отвечает за представление.
+`RpcClient` is the transport, `AppController` the sessions and protocol, `ListModel` the
+data for QML, `GitService` Git, `Settings` KConfig and KWallet, and `Maintenance` the
+daemon, remote control and updates. QML only presents the data.
+
+## License
+
+Kodex is free software: you can redistribute it and modify it under the terms of the
+GNU General Public License, version 3 or (at your option) any later version. See
+[LICENSES/GPL-3.0-or-later.txt](LICENSES/GPL-3.0-or-later.txt). The project follows the
+[REUSE](https://reuse.software/) specification; the JSON schema in `protocol/` comes from
+the Apache-2.0 licensed [Codex](https://github.com/openai/codex) project.

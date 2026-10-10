@@ -1,7 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #pragma once
 #include <KSharedConfig>
 #include <QObject>
 #include <QProcessEnvironment>
+#include <QUrl>
 #include <QVariantMap>
 class Settings : public QObject {
     Q_OBJECT
@@ -19,7 +26,15 @@ class Settings : public QObject {
     static QString redact(QString text);
     QString executable() const;
     QStringList arguments() const;
-  signals:
+    // Absolute path that `program` (a PATH name or a path) would run, or empty if it cannot run.
+    Q_INVOKABLE static QString resolveProgram(const QString &program);
+    // Local path of a file chosen in a QML dialog.
+    Q_INVOKABLE static QString localPath(const QUrl &file);
+    // Folder where a file dialog for `program` should open: next to its current binary, else home.
+    Q_INVOKABLE static QUrl dialogFolder(const QString &program);
+    // A folder path with the home directory shown as "~".
+    Q_INVOKABLE static QString shortPath(const QString &path);
+  Q_SIGNALS:
     void changed();
     void error(const QString &message);
 

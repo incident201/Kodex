@@ -1,0 +1,12 @@
+# Dependencies for KDE's continuous integration.
+Dependencies:
+- 'on': ['@all']
+  'require':
+    'frameworks/extra-cmake-modules': '@latest-kf6'
+    'frameworks/kconfig': '@latest-kf6'
+    'frameworks/kcoreaddons': '@latest-kf6'
+    'frameworks/ki18n': '@latest-kf6'
+    'frameworks/kirigami': '@latest-kf6'
+    'frameworks/kwallet': '@latest-kf6'
+    'frameworks/syntax-highlighting': '@latest-kf6'
+    'frameworks/qqc2-desktop-style': '@latest-kf6'

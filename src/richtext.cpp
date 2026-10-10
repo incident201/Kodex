@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "richtext.h"
 #include <KSyntaxHighlighting/AbstractHighlighter>
 #include <KSyntaxHighlighting/Definition>
@@ -39,9 +45,11 @@ QString RichText::markdown(const QString &source, bool dark) {
                                                       : KSyntaxHighlighting::Repository::LightTheme);
     // Rich text ignores backgrounds on <pre>; a single-cell table gives code blocks a panel.
     const auto block = [&](const QString &body) {
-        return QString("<table width=\"100%\" cellspacing=\"0\" cellpadding=\"8\" bgcolor=\"%1\"><tr><td><pre>%2</pre>"
+        return QString("<table width=\"100%\" cellspacing=\"0\" cellpadding=\"8\" "
+                       "bgcolor=\"%1\"><tr><td><pre>%2</pre>"
                        "</td></tr></table>")
-            .arg(QColor::fromRgba(theme.editorColor(KSyntaxHighlighting::Theme::BackgroundColor)).name(), body);
+            .arg(QColor::fromRgba(theme.editorColor(KSyntaxHighlighting::Theme::BackgroundColor)).name(),
+                 body);
     };
     QString html;
     QString prose, code, language;

@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "rpcclient.h"
 #include <KLocalizedString>
 #include <QCryptographicHash>
@@ -105,21 +111,21 @@ void RpcClient::disconnectServer() {
         if (!m_process.waitForFinished(500))
             m_process.kill();
     }
-    emit disconnected();
-    emit stateChanged();
+    Q_EMIT disconnected();
+    Q_EMIT stateChanged();
 }
 void RpcClient::connectServer() {
     if (m_ready || m_starting || m_process.state() != QProcess::NotRunning)
         return;
     if (m_settings->executable().isEmpty()) {
         m_status = i18n("Codex executable not found.");
-        emit stateChanged();
+        Q_EMIT stateChanged();
         return;
     }
     m_stopping = false;
     m_starting = true;
     m_status = i18n("Connecting to Codex…");
-    emit stateChanged();
+    Q_EMIT stateChanged();
     auto *p = new QProcess(this);
     p->setProcessEnvironment(m_settings->environment());
     auto complete = [this, p](bool ok) {
@@ -171,8 +177,8 @@ void RpcClient::fail(const QString &reason) {
     for (const auto &cb : pending)
         if (cb)
             cb({}, {{"message", i18n("Connection lost; the operation outcome is unknown.")}});
-    emit disconnected();
-    emit stateChanged();
+    Q_EMIT disconnected();
+    Q_EMIT stateChanged();
     m_retry.start(m_backoff);
     m_backoff = qMin(m_backoff * 2, 30000);
 }
@@ -254,8 +260,8 @@ void RpcClient::read() {
                     m_ready = true;
                     m_backoff = 1000;
                     m_status = i18n("Connected");
-                    emit stateChanged();
-                    emit connected();
+                    Q_EMIT stateChanged();
+                    Q_EMIT connected();
                 });
     }
     while (true) {
@@ -307,9 +313,9 @@ void RpcClient::ingest(const QJsonObject &j) {
         auto m = j["method"].toString();
         auto p = j["params"].toObject();
         if (j.contains("id"))
-            emit serverRequest(j["id"], m, p);
+            Q_EMIT serverRequest(j["id"], m, p);
         else
-            emit notification(m, p);
+            Q_EMIT notification(m, p);
     } else if (j.contains("id")) {
         auto cb = m_pending.take(j["id"].toVariant().toString());
         if (cb)

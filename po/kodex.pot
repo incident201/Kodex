@@ -1,0 +1,1007 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR incident201
+# This file is distributed under the same license as the Kodex package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Kodex 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/incident201/Kodex/issues\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: data/io.github.incident201.kodex.desktop:4
+msgid "Codex client"
+msgstr ""
+
+#: data/io.github.incident201.kodex.desktop:5
+msgid "Work with Codex on your KDE desktop"
+msgstr ""
+
+#: data/io.github.incident201.kodex.desktop:6
+msgid "Codex;OpenAI;AI;assistant;coding;agent;"
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:10
+msgid "A native KDE client for Codex"
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:12
+msgid ""
+"Kodex is a native Qt Quick and Kirigami desktop client for the Codex app-"
+"server. It talks to the same local daemon as the Codex command line tool, so "
+"your account, profile and saved sessions are shared."
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:13
+msgid "Features:"
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:15
+msgid ""
+"Projects, tasks and the sessions you started from the command line, "
+"including sessions without a project"
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:16
+msgid "Streaming answers, plans, questions and approval requests"
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:17
+msgid ""
+"Attach files, pictures and clipboard screenshots; see the pictures Codex "
+"opens or creates"
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:18
+msgid ""
+"Git panel with the working tree, the staged diff and the diff made by Codex"
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:19
+msgid "Updates, remote control pairing and proxy settings"
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:21
+msgid ""
+"Kodex is an independent project. It is not affiliated with or endorsed by "
+"OpenAI."
+msgstr ""
+
+#: data/io.github.incident201.kodex.metainfo.xml:38
+msgid "A task with Codex, pictures in the conversation and the Git panel"
+msgstr ""
+
+#: qml/DialogButtons.qml:13
+msgid "OK"
+msgstr ""
+
+#: qml/DialogButtons.qml:17 qml/RequestCard.qml:134
+msgid "Cancel"
+msgstr ""
+
+#: qml/GitPanel.qml:21 qml/Main.qml:125
+msgid "Changes"
+msgstr ""
+
+#: qml/GitPanel.qml:22 qml/SettingsPage.qml:98
+msgid "Refresh"
+msgstr ""
+
+#: qml/GitPanel.qml:27
+msgid "Not a Git repository"
+msgstr ""
+
+#: qml/GitPanel.qml:31
+msgid "Working tree"
+msgstr ""
+
+#: qml/GitPanel.qml:32
+msgid "Codex diff"
+msgstr ""
+
+#: qml/GitPanel.qml:46
+msgid "Stage file"
+msgstr ""
+
+#: qml/GitPanel.qml:46
+msgid "Unstage file"
+msgstr ""
+
+#: qml/GitPanel.qml:56
+msgid "Added"
+msgstr ""
+
+#: qml/GitPanel.qml:56
+msgid "Conflict"
+msgstr ""
+
+#: qml/GitPanel.qml:56
+msgid "Copied"
+msgstr ""
+
+#: qml/GitPanel.qml:56
+msgid "Deleted"
+msgstr ""
+
+#: qml/GitPanel.qml:56
+msgid "Modified"
+msgstr ""
+
+#: qml/GitPanel.qml:56
+msgid "Renamed"
+msgstr ""
+
+#: qml/GitPanel.qml:56
+msgid "Untracked"
+msgstr ""
+
+#: qml/GitPanel.qml:64
+msgid "Show staged diff"
+msgstr ""
+
+#: qml/GitPanel.qml:68
+msgid ""
+"Codex has not provided a separate diff. File changes are available in "
+"Working tree."
+msgstr ""
+
+#: qml/GitPanel.qml:68
+msgid "Select a file to view its diff."
+msgstr ""
+
+#: qml/GitPanel.qml:68
+msgid ""
+"This folder is not a Git repository. Codex patches appear in the Codex diff "
+"tab."
+msgstr ""
+
+#: qml/GitPanel.qml:82
+msgid "Git actions"
+msgstr ""
+
+#: qml/GitPanel.qml:89
+msgid "Commit message"
+msgstr ""
+
+#: qml/GitPanel.qml:90
+msgid "Commit staged"
+msgstr ""
+
+#: qml/GitPanel.qml:94
+msgid "Push"
+msgstr ""
+
+#: qml/GitPanel.qml:95
+msgid "Fetch, fast-forward, then push"
+msgstr ""
+
+#: qml/GitPanel.qml:95
+msgid "Sync"
+msgstr ""
+
+#: qml/Main.qml:30
+msgid "… %1 earlier character hidden …"
+msgid_plural "… %1 earlier characters hidden …"
+msgstr[0] ""
+msgstr[1] ""
+
+#: qml/Main.qml:59
+msgid "Wait for the current operation to finish before closing."
+msgstr ""
+
+#: qml/Main.qml:65 qml/Main.qml:142
+msgid "Add project"
+msgstr ""
+
+#: qml/Main.qml:66
+msgid "Attach files"
+msgstr ""
+
+#: qml/Main.qml:76
+msgid "Drop files to attach"
+msgstr ""
+
+#: qml/Main.qml:99
+msgid "Open in viewer"
+msgstr ""
+
+#: qml/Main.qml:100 qml/Main.qml:490
+msgid "Close"
+msgstr ""
+
+#: qml/Main.qml:105 qml/Main.qml:216
+msgid "Rename"
+msgstr ""
+
+#: qml/Main.qml:124
+msgid "Reconnect"
+msgstr ""
+
+#: qml/Main.qml:126 qml/Main.qml:487
+msgid "Settings"
+msgstr ""
+
+#: qml/Main.qml:141
+msgid "Projects"
+msgstr ""
+
+#: qml/Main.qml:157
+msgid "Sessions without a project"
+msgstr ""
+
+#: qml/Main.qml:159
+msgid "Codex sessions from any folder that belong to no project"
+msgstr ""
+
+#: qml/Main.qml:163
+msgid "Open folder"
+msgstr ""
+
+#: qml/Main.qml:164
+msgid "Rename project"
+msgstr ""
+
+#: qml/Main.qml:166
+msgid "New task"
+msgstr ""
+
+#: qml/Main.qml:171
+msgid "Tasks"
+msgstr ""
+
+#: qml/Main.qml:172
+msgid "Archived tasks"
+msgstr ""
+
+#: qml/Main.qml:186 qml/Main.qml:214
+msgid "Untitled task"
+msgstr ""
+
+#: qml/Main.qml:206
+msgid "Load more"
+msgstr ""
+
+#: qml/Main.qml:207 qml/SettingsPage.qml:26
+msgid "Not signed in"
+msgstr ""
+
+#: qml/Main.qml:214
+msgid "Start a task"
+msgstr ""
+
+#: qml/Main.qml:215
+msgid "Archived"
+msgstr ""
+
+#: qml/Main.qml:217
+msgid "Archive"
+msgstr ""
+
+#: qml/Main.qml:217
+msgid "Restore"
+msgstr ""
+
+#: qml/Main.qml:232
+msgid "Load earlier messages"
+msgstr ""
+
+#: qml/Main.qml:271
+msgid "Collapse"
+msgstr ""
+
+#: qml/Main.qml:271
+msgid "Expand"
+msgstr ""
+
+#: qml/Main.qml:272
+msgid "Activity"
+msgstr ""
+
+#: qml/Main.qml:272
+msgid "Command"
+msgstr ""
+
+#: qml/Main.qml:272
+msgid "Context"
+msgstr ""
+
+#: qml/Main.qml:272
+msgid "File changes"
+msgstr ""
+
+#: qml/Main.qml:272
+msgid "Generated image"
+msgstr ""
+
+#: qml/Main.qml:272
+msgid "Image"
+msgstr ""
+
+#: qml/Main.qml:272
+msgid "MCP tool"
+msgstr ""
+
+#: qml/Main.qml:272 qml/Main.qml:385
+msgid "Plan"
+msgstr ""
+
+#: qml/Main.qml:272 qml/Main.qml:373
+msgid "Reasoning"
+msgstr ""
+
+#: qml/Main.qml:272
+msgid "You"
+msgstr ""
+
+#: qml/Main.qml:275
+msgid "Declined"
+msgstr ""
+
+#: qml/Main.qml:275
+msgid "Done"
+msgstr ""
+
+#: qml/Main.qml:275
+msgid "Failed"
+msgstr ""
+
+#: qml/Main.qml:275
+msgid "Running"
+msgstr ""
+
+#: qml/Main.qml:275
+msgid "Stopped"
+msgstr ""
+
+#: qml/Main.qml:276
+msgid "Copy"
+msgstr ""
+
+#: qml/Main.qml:302
+msgid "Image unavailable"
+msgstr ""
+
+#: qml/Main.qml:302
+msgid "Image unavailable: %1"
+msgstr ""
+
+#: qml/Main.qml:329
+msgid "Your workspace, with Codex"
+msgstr ""
+
+#: qml/Main.qml:330
+msgid "Add a project and create a task to get started."
+msgstr ""
+
+#: qml/Main.qml:330
+msgid "Choose a session on the left to continue it."
+msgstr ""
+
+#: qml/Main.qml:330
+msgid "Describe what you want to build or change."
+msgstr ""
+
+#: qml/Main.qml:340
+msgid "Request %1 of %2"
+msgstr ""
+
+#: qml/Main.qml:351
+msgid "The plan is ready. Implement it?"
+msgstr ""
+
+#: qml/Main.qml:353
+msgid "Keep planning"
+msgstr ""
+
+#: qml/Main.qml:354
+msgid "Implement plan"
+msgstr ""
+
+#: qml/Main.qml:367
+msgid "Model"
+msgstr ""
+
+#: qml/Main.qml:379
+msgid "Approve for me"
+msgstr ""
+
+#: qml/Main.qml:379
+msgid "Ask me"
+msgstr ""
+
+#: qml/Main.qml:379
+msgid "Full access"
+msgstr ""
+
+#: qml/Main.qml:379
+msgid "Read only"
+msgstr ""
+
+#: qml/Main.qml:379
+msgid "Session settings"
+msgstr ""
+
+#: qml/Main.qml:386
+msgid "Available when the model supports a fast service tier"
+msgstr ""
+
+#: qml/Main.qml:426
+msgid "Remove attachment"
+msgstr ""
+
+#: qml/Main.qml:436
+msgid "Add a clarification…"
+msgstr ""
+
+#: qml/Main.qml:436
+msgid "Message Codex…  / for commands"
+msgstr ""
+
+#: qml/Main.qml:456
+msgid "Attach files…"
+msgstr ""
+
+#: qml/Main.qml:459
+msgid "Attach files or paste an image (Ctrl+V)"
+msgstr ""
+
+#: qml/Main.qml:462
+#, javascript-format
+msgid "Context: %1%"
+msgstr ""
+
+#: qml/Main.qml:462
+msgid "Context: unavailable"
+msgstr ""
+
+#: qml/Main.qml:465 qml/SettingsPage.qml:35
+msgid "Usage limits unavailable"
+msgstr ""
+
+#: qml/Main.qml:471
+msgid "Stop"
+msgstr ""
+
+#: qml/Main.qml:472
+msgid "Send"
+msgstr ""
+
+#: qml/Main.qml:472
+msgid "Steer"
+msgstr ""
+
+#: qml/Main.qml:489
+msgid "Save settings"
+msgstr ""
+
+#: qml/ProgramField.qml:25
+msgid "Browse…"
+msgstr ""
+
+#: qml/ProgramField.qml:34
+msgid "Not found or not executable"
+msgstr ""
+
+#: qml/ProgramField.qml:35
+msgid "Executable file found"
+msgstr ""
+
+#: qml/ProgramField.qml:36
+msgid "Will run: %1"
+msgstr ""
+
+#: qml/RequestCard.qml:31
+msgid "Approval required"
+msgstr ""
+
+#: qml/RequestCard.qml:31
+msgid "Codex has a question"
+msgstr ""
+
+#: qml/RequestCard.qml:49
+msgid "Directory: %1"
+msgstr ""
+
+#: qml/RequestCard.qml:50
+msgid "Open task"
+msgstr ""
+
+#: qml/RequestCard.qml:89
+msgid "Your answer…"
+msgstr ""
+
+#: qml/RequestCard.qml:118
+msgid "Open in browser"
+msgstr ""
+
+#: qml/RequestCard.qml:119
+msgid "This request type is not supported. You can decline or cancel it."
+msgstr ""
+
+#: qml/RequestCard.qml:120
+msgid "Details"
+msgstr ""
+
+#: qml/RequestCard.qml:127
+msgid "Submit answers"
+msgstr ""
+
+#: qml/RequestCard.qml:134
+msgid "Allow this host"
+msgstr ""
+
+#: qml/RequestCard.qml:134
+msgid "Approve"
+msgstr ""
+
+#: qml/RequestCard.qml:134
+msgid "Approve and remember rule"
+msgstr ""
+
+#: qml/RequestCard.qml:134
+msgid "Approve for session"
+msgstr ""
+
+#: qml/RequestCard.qml:134
+msgid "Block this host"
+msgstr ""
+
+#: qml/RequestCard.qml:134
+msgid "Decline"
+msgstr ""
+
+#: qml/RequestCard.qml:136
+msgid "Remember rule: %1"
+msgstr ""
+
+#: qml/SettingsPage.qml:20
+msgid ""
+"Settings saved. A running daemon keeps its current environment until "
+"restarted."
+msgstr ""
+
+#: qml/SettingsPage.qml:25
+msgid "Account"
+msgstr ""
+
+#: qml/SettingsPage.qml:29
+msgid "Sign in with ChatGPT"
+msgstr ""
+
+#: qml/SettingsPage.qml:30
+msgid "Use device code"
+msgstr ""
+
+#: qml/SettingsPage.qml:31
+msgid "Cancel login"
+msgstr ""
+
+#: qml/SettingsPage.qml:32
+msgid "Sign out"
+msgstr ""
+
+#: qml/SettingsPage.qml:37
+msgid "Codex and proxy"
+msgstr ""
+
+#: qml/SettingsPage.qml:43
+msgid "Codex executable:"
+msgstr ""
+
+#: qml/SettingsPage.qml:44
+msgid "Select the Codex executable"
+msgstr ""
+
+#: qml/SettingsPage.qml:45 qml/SettingsPage.qml:67
+msgid "Name in PATH or full path"
+msgstr ""
+
+#: qml/SettingsPage.qml:47
+msgid "Arguments:"
+msgstr ""
+
+#: qml/SettingsPage.qml:47
+msgid "Optional, quoted arguments supported"
+msgstr ""
+
+#: qml/SettingsPage.qml:48
+msgid "Custom proxy"
+msgstr ""
+
+#: qml/SettingsPage.qml:48
+msgid "Inherit environment"
+msgstr ""
+
+#: qml/SettingsPage.qml:48
+msgid "No proxy"
+msgstr ""
+
+#: qml/SettingsPage.qml:48
+msgid "Proxy:"
+msgstr ""
+
+#: qml/SettingsPage.qml:49
+msgid "Proxy URL:"
+msgstr ""
+
+#: qml/SettingsPage.qml:50
+msgid "Proxy password:"
+msgstr ""
+
+#: qml/SettingsPage.qml:50
+msgid "Stored in KWallet"
+msgstr ""
+
+#: qml/SettingsPage.qml:51
+msgid "Bypass proxy:"
+msgstr ""
+
+#: qml/SettingsPage.qml:52
+msgid "Update fallback proxy:"
+msgstr ""
+
+#: qml/SettingsPage.qml:53
+msgid "Language:"
+msgstr ""
+
+#: qml/SettingsPage.qml:53
+msgid "System language"
+msgstr ""
+
+#: qml/SettingsPage.qml:55
+msgid ""
+"A wrapper may override proxy settings. Changes apply to newly started "
+"processes; restart the daemon to apply them to Codex. Language changes "
+"require restarting Kodex."
+msgstr ""
+
+#: qml/SettingsPage.qml:57
+msgid "Updates"
+msgstr ""
+
+#: qml/SettingsPage.qml:58
+msgid "CLI: %1 · daemon: %2"
+msgstr ""
+
+#: qml/SettingsPage.qml:63
+msgid "External updater"
+msgstr ""
+
+#: qml/SettingsPage.qml:63
+msgid "Standalone installer"
+msgstr ""
+
+#: qml/SettingsPage.qml:63
+msgid "Update method:"
+msgstr ""
+
+#: qml/SettingsPage.qml:65
+msgid "Updater executable:"
+msgstr ""
+
+#: qml/SettingsPage.qml:66
+msgid "Select the updater program"
+msgstr ""
+
+#: qml/SettingsPage.qml:69
+msgid "Updater arguments:"
+msgstr ""
+
+#: qml/SettingsPage.qml:73
+msgid "Check version"
+msgstr ""
+
+#: qml/SettingsPage.qml:74
+msgid "Update Codex"
+msgstr ""
+
+#: qml/SettingsPage.qml:75
+msgid "Restart daemon…"
+msgstr ""
+
+#: qml/SettingsPage.qml:77
+msgid ""
+"External scripts can override proxy settings. Updates never restart the "
+"daemon automatically."
+msgstr ""
+
+#: qml/SettingsPage.qml:84
+msgid "Remote control"
+msgstr ""
+
+#: qml/SettingsPage.qml:85
+msgid "Pair your phone with Codex on this computer."
+msgstr ""
+
+#: qml/SettingsPage.qml:89
+msgid "Enable remote control"
+msgstr ""
+
+#: qml/SettingsPage.qml:90
+msgid "Disable remote control"
+msgstr ""
+
+#: qml/SettingsPage.qml:91
+msgid "Create pairing code"
+msgstr ""
+
+#: qml/SettingsPage.qml:99
+msgid "Reload configuration"
+msgstr ""
+
+#: qml/SettingsPage.qml:107
+msgid "Authenticate"
+msgstr ""
+
+#: qml/SettingsPage.qml:112
+msgid "Restart the shared daemon?"
+msgstr ""
+
+#: qml/SettingsPage.qml:114
+msgid ""
+"This interrupts active tasks in every connected client, including CLI and "
+"remote control. Reconnect after the restart to restore history."
+msgstr ""
+
+#: qml/SettingsPage.qml:118
+msgid "Sign out of Codex?"
+msgstr ""
+
+#: qml/SettingsPage.qml:120
+msgid "This signs out the shared Codex account, including other clients."
+msgstr ""
+
+#: src/appcontroller.cpp:141
+msgid "Choose an existing local directory."
+msgstr ""
+
+#: src/appcontroller.cpp:165 src/appcontroller.cpp:186
+#: src/appcontroller.cpp:306
+msgid "Wait for the Git operation to finish."
+msgstr ""
+
+#: src/appcontroller.cpp:618
+msgid "You can attach at most %1 file at once."
+msgid_plural "You can attach at most %1 files at once."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/appcontroller.cpp:653
+msgid "Could not save the pasted image."
+msgstr ""
+
+#: src/appcontroller.cpp:681
+msgid "The active turn is not known yet. Try again in a moment."
+msgstr ""
+
+#: src/appcontroller.cpp:761
+msgid "Fast mode is not available for this model."
+msgstr ""
+
+#: src/appcontroller.cpp:795
+msgid "Unknown command: %1"
+msgstr ""
+
+#: src/appcontroller.cpp:980
+msgid "Context compacted"
+msgstr ""
+
+#: src/appcontroller.cpp:1015
+msgid "%1: %2% used · resets %3"
+msgstr ""
+
+#: src/gitservice.cpp:140
+msgid ""
+"\n"
+"Diff truncated at 2 MiB."
+msgstr ""
+
+#: src/gitservice.cpp:185
+msgid "Enter a commit message."
+msgstr ""
+
+#: src/gitservice.cpp:198
+msgid "Configure an upstream branch before pushing."
+msgstr ""
+
+#: src/gitservice.cpp:205
+msgid "Configure an upstream branch before syncing."
+msgstr ""
+
+#: src/gitservice.cpp:213
+msgid "Commit or resolve working tree changes before syncing."
+msgstr ""
+
+#: src/gitservice.cpp:229
+msgid "Could not compare branches."
+msgstr ""
+
+#: src/gitservice.cpp:234
+msgid "Branches have diverged. Resolve them before syncing."
+msgstr ""
+
+#: src/main.cpp:53
+msgid "A native Codex client for KDE"
+msgstr ""
+
+#: src/main.cpp:53
+msgid "Kodex"
+msgstr ""
+
+#: src/main.cpp:54
+msgid "© 2026 incident201"
+msgstr ""
+
+#: src/main.cpp:56
+msgid "Author"
+msgstr ""
+
+#: src/main.cpp:56
+msgid "incident201"
+msgstr ""
+
+#: src/main.cpp:59
+msgctxt "NAME OF TRANSLATORS"
+msgid "Your names"
+msgstr ""
+
+#: src/main.cpp:60
+msgctxt "EMAIL OF TRANSLATORS"
+msgid "Your emails"
+msgstr ""
+
+#: src/main.cpp:64
+msgid "Start without connecting to Codex"
+msgstr ""
+
+#: src/main.cpp:65
+msgid "Exit after loading the user interface"
+msgstr ""
+
+#: src/main.cpp:66
+msgid "Save a UI screenshot for testing"
+msgstr ""
+
+#: src/main.cpp:67
+msgid "Open the settings page"
+msgstr ""
+
+#: src/maintenance.cpp:33
+msgid "Pairing code expired."
+msgstr ""
+
+#: src/maintenance.cpp:44
+msgid "Device paired."
+msgstr ""
+
+#: src/maintenance.cpp:137
+msgid ""
+"Built-in updates require a standalone Codex installation. Configure an "
+"external updater."
+msgstr ""
+
+#: src/maintenance.cpp:149
+msgid ""
+"\n"
+"Update failed.\n"
+msgstr ""
+
+#: src/maintenance.cpp:150
+msgid ""
+"\n"
+"Update finished. Restart the daemon to use the new version.\n"
+msgstr ""
+
+#: src/maintenance.cpp:160
+msgid "Could not create a temporary directory."
+msgstr ""
+
+#: src/maintenance.cpp:174
+msgid "Trying the fallback proxy…\n"
+msgstr ""
+
+#: src/maintenance.cpp:178
+msgid "Download failed. The installer was not run.\n"
+msgstr ""
+
+#: src/maintenance.cpp:186
+msgid "Installation failed. Check the log before retrying.\n"
+msgstr ""
+
+#: src/maintenance.cpp:187
+msgid "Update finished. Restart the daemon to use the new version.\n"
+msgstr ""
+
+#: src/maintenance.cpp:214 src/rpcclient.cpp:192
+msgid "Codex is not connected."
+msgstr ""
+
+#: src/maintenance.cpp:236
+msgid "Expires at %1"
+msgstr ""
+
+#: src/rpcclient.cpp:65 src/rpcclient.cpp:108
+msgid "Not connected"
+msgstr ""
+
+#: src/rpcclient.cpp:71
+msgid "Codex connection timed out."
+msgstr ""
+
+#: src/rpcclient.cpp:89
+msgid "Could not start Codex. Check the executable path."
+msgstr ""
+
+#: src/rpcclient.cpp:93
+msgid "Disconnected from Codex. Reconnecting…"
+msgstr ""
+
+#: src/rpcclient.cpp:121
+msgid "Codex executable not found."
+msgstr ""
+
+#: src/rpcclient.cpp:127
+msgid "Connecting to Codex…"
+msgstr ""
+
+#: src/rpcclient.cpp:139
+msgid "Could not start the Codex daemon."
+msgstr ""
+
+#: src/rpcclient.cpp:179
+msgid "Connection lost; the operation outcome is unknown."
+msgstr ""
+
+#: src/rpcclient.cpp:216
+msgid ""
+"The request timed out; its outcome is unknown. Check the task before "
+"retrying."
+msgstr ""
+
+#: src/rpcclient.cpp:236 src/rpcclient.cpp:244
+msgid "Invalid Codex handshake."
+msgstr ""
+
+#: src/rpcclient.cpp:262
+msgid "Connected"
+msgstr ""
+
+#: src/rpcclient.cpp:275
+msgid "Invalid WebSocket frame."
+msgstr ""
+
+#: src/rpcclient.cpp:279
+msgid "Codex closed the connection."
+msgstr ""
+
+#: src/rpcclient.cpp:289
+msgid "Unsupported WebSocket message."
+msgstr ""
+
+#: src/rpcclient.cpp:294
+msgid "Codex message is too large."
+msgstr ""
+
+#: src/rpcclient.cpp:302
+msgid "Invalid JSON from Codex."
+msgstr ""
+
+#: src/settings.cpp:82
+msgid "Enter a valid proxy URL without a password; use the password field."
+msgstr ""
+
+#: src/settings.cpp:87
+msgid "A proxy URL is required."
+msgstr ""
+
+#: src/settings.cpp:94
+msgid "Could not save the proxy password in KWallet."
+msgstr ""

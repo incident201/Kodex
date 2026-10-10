@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2026 incident201 <58225046+incident201@users.noreply.github.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #pragma once
 #include <QAbstractListModel>
 #include <QJsonArray>
@@ -19,7 +25,7 @@ class ListModel : public QAbstractListModel {
     void delta(const QString &id, const QString &text, const QString &type);
     void remove(const QString &id);
     QJsonArray json() const;
-  signals:
+  Q_SIGNALS:
     void countChanged();
 
   private:

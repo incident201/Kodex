@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.incident201.kodex</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Kodex</name>
+  <developer id="io.github.incident201">
+    <name>incident201</name>
+  </developer>
+  <summary>A native KDE client for Codex</summary>
+  <description>
+    <p>Kodex is a native Qt Quick and Kirigami desktop client for the Codex app-server. It talks to the same local daemon as the Codex command line tool, so your account, profile and saved sessions are shared.</p>
+    <p>Features:</p>
+    <ul>
+      <li>Projects, tasks and the sessions you started from the command line, including sessions without a project</li>
+      <li>Streaming answers, plans, questions and approval requests</li>
+      <li>Attach files, pictures and clipboard screenshots; see the pictures Codex opens or creates</li>
+      <li>Git panel with the working tree, the staged diff and the diff made by Codex</li>
+      <li>Updates, remote control pairing and proxy settings</li>
+    </ul>
+    <p>Kodex is an independent project. It is not affiliated with or endorsed by OpenAI.</p>
+  </description>
+  <launchable type="desktop-id">io.github.incident201.kodex.desktop</launchable>
+  <url type="homepage">https://github.com/incident201/Kodex</url>
+  <url type="bugtracker">https://github.com/incident201/Kodex/issues</url>
+  <url type="vcs-browser">https://github.com/incident201/Kodex</url>
+  <provides>
+    <binary>kodex</binary>
+  </provides>
+  <categories>
+    <category>Development</category>
+    <category>Qt</category>
+    <category>KDE</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <screenshots>
+    <screenshot type="default">
+      <caption>A task with Codex, pictures in the conversation and the Git panel</caption>
+      <image>https://raw.githubusercontent.com/incident201/Kodex/main/docs/screenshots/chat.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings</caption>
+      <image>https://raw.githubusercontent.com/incident201/Kodex/main/docs/screenshots/settings.png</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="0.1.0" date="2026-10-10"/>
+  </releases>
+</component>

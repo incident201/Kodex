@@ -32,6 +32,7 @@ remove_definitions(-DQT_NO_CAST_FROM_ASCII -DQT_NO_CAST_TO_ASCII -DQT_USE_QSTRIN
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 include(KDEClangFormat)
 include(ECMSetupVersion)
+include(ECMInstallIcons)
 include(FeatureSummary)
 include(CTest)
 
@@ -57,7 +58,8 @@ qt_add_qml_module(kodex URI io.github.incident201.kodex VERSION 1.0
 target_link_libraries(kodex PRIVATE kodex_core Qt6::Widgets Qt6::Quick Qt6::QuickControls2
     KF6::Kirigami KF6::I18nQml KF6::CoreAddons)
 install(TARGETS kodex ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
-install(FILES data/${KODEX_APP_ID}.svg DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/scalable/apps)
+file(GLOB KODEX_ICONS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/data/icons/*-apps-${KODEX_APP_ID}.png)
+ecm_install_icons(ICONS ${KODEX_ICONS} DESTINATION ${KDE_INSTALL_ICONDIR} THEME hicolor)
 
 # Translations: po/<lang>/kodex.po, installed as kodex.mo by ki18n.
 ki18n_install(po)

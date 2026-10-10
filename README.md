@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="data/icons/128-apps-io.github.incident201.kodex.png" alt="Kodex icon" width="96" height="96">
+</p>
+
 # Kodex
 
 A native KDE desktop client for [Codex](https://github.com/openai/codex), written in
@@ -55,15 +59,15 @@ builds a local copy into `.deps/` that the build picks up automatically.
 ## Build and run
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$HOME/.local"
 cmake --build build
 ./build/kodex
 ```
 
-To install it into your application menu:
+To install it into your application menu, with the prefix chosen above:
 
 ```sh
-cmake --install build --prefix "$HOME/.local"
+cmake --install build
 ```
 
 Command line options: `--settings` opens the settings, `--offline` starts without

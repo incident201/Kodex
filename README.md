@@ -29,7 +29,7 @@ It does not use `codex exec --json` and it does not read your credentials.
 - A Git panel with the working tree, the staged diff and the diff made by Codex, plus
   commit, push and sync.
 - Codex updates, remote control pairing, MCP server status and proxy settings.
-- Light and dark Breeze themes, translations through KDE's `ki18n` (Russian included).
+- Light and dark Breeze themes, translations through KDE's `ki18n`.
 
 ## Requirements
 
